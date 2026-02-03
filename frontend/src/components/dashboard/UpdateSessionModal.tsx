@@ -87,17 +87,18 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
 
     const totalToPay = session.price + extendPrice + newMemberPrice + snackPrice;
     const alreadyPaid = session.paidPeople || 0;
+    const totalPrice = session.price;
 
-    const remainingPeople = totalPeople - alreadyPaid;
-    const remaining = session.remainingAmount ?? session.price;
+    const remaining = session.remainingAmount ?? totalPrice;
 
-    const perPerson = remaining / remainingPeople;
+    const perPerson = totalPrice / totalPeople;
+
     const payNowAmount = payingNow * perPerson;
 
-    const newRemainingPeople = remainingPeople - payingNow;
-    const newRemainingAmount = remaining - payNowAmount;
+    const newPaidPeople = alreadyPaid + payingNow;
+    const newRemainingPeople = totalPeople - newPaidPeople;
 
-
+    const newRemainingAmount = remaining - (newPaidPeople * perPerson);
 
 
     // ------------------- Handlers -------------------
@@ -337,7 +338,7 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
                                     </h4>
 
                                     <h4 style={{ marginTop: 12 }}>
-                                        People Remaining: {remainingPeople}
+                                        People Remaining: {newRemainingPeople}
                                     </h4>
 
                                     <div style={{ marginTop: 12 }}>
@@ -345,7 +346,7 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
                                         <input
                                             type="number"
                                             min={0}
-                                            max={totalPeople}
+                                            max={newRemainingPeople}
                                             value={payingNow}
                                             onChange={e => setPayingNow(Number(e.target.value))}
                                             className="input-field"
@@ -357,7 +358,8 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
                                     </div>
 
                                     <div style={{ marginTop: 8 }}>
-                                        Remaining People: <b>{remainingPeople}</b>
+                                        Remaining People: <b>{newRemainingPeople}</b>
+
                                     </div>
 
                                     <div style={{ marginTop: 8 }}>
@@ -388,7 +390,7 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
                             animate={{ scale: 1, color: '#f4f4f5' }}
                             className="total-value-lg"
                         >
-                            ₹{totalToPay.toFixed(0)}
+                            ₹{remaining.toFixed(0)}
                         </motion.span>
                     </div>
                     <button className="pay-btn" onClick={handleConfirm}>

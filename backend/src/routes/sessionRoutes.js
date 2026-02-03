@@ -6,15 +6,19 @@ const {
     createBooking,
     getUpcomingBookings,
     getDeviceAvailability,
+    getDeviceAvailabilityForTime,
     completeSession,
     updateSession,
-    deleteSession
+    deleteSession,
+    deleteBooking,
+    convertBookingsToSessions
 } = require('../controllers/sessionController');
 
 router.post('/start', createSession);
 router.get('/active', getActiveSessions);
 
-router.get('/availability', getDeviceAvailability); // NEW
+router.get('/availability', getDeviceAvailability);
+router.get('/availability-for-time', getDeviceAvailabilityForTime);
 
 router.post('/update/:id', updateSession);
 
@@ -24,5 +28,9 @@ router.delete('/delete/:id', deleteSession);
 
 router.post('/booking', createBooking);
 router.get('/upcoming', getUpcomingBookings);
+router.delete('/booking/:id', deleteBooking);
+
+// Auto-convert bookings to sessions
+router.post('/convert-bookings', convertBookingsToSessions);
 
 module.exports = router;

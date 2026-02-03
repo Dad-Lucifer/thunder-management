@@ -168,7 +168,7 @@ const getActiveSessions = async (req, res) => {
 const createBooking = async (req, res) => {
     // Similar to session but with a 'bookingTime'
     try {
-        const { customerName, bookingTime, devices } = req.body;
+        const { customerName, bookingTime, bookingEndTime, devices, peopleCount } = req.body;
         // bookingTime expected ISO string
 
         if (!db) return res.status(500).json({ message: 'Database not initialized' });
@@ -176,6 +176,8 @@ const createBooking = async (req, res) => {
         const newBooking = {
             customerName,
             bookingTime,
+            bookingEndTime: bookingEndTime || null,
+            peopleCount: peopleCount || 1,
             devices: devices || {}, // { ps: 1 ... }
             status: 'upcoming',
             createdAt: new Date().toISOString()
@@ -201,16 +203,27 @@ const getUpcomingBookings = async (req, res) => {
         const bookings = snapshot.docs.map(doc => {
             const data = doc.data();
 
-            const bookingDate =
-                data.bookingTime?.toDate?.() || new Date(data.bookingTime);
+            // Ensure we handle both Firestore Timestamp and ISO String
+            const bookingDate = data.bookingTime?.toDate
+                ? data.bookingTime.toDate()
+                : new Date(data.bookingTime);
+
+            const endDate = data.bookingEndTime
+                ? (data.bookingEndTime.toDate ? data.bookingEndTime.toDate() : new Date(data.bookingEndTime))
+                : null;
+
+            // Calculate duration in hours
+            let duration = 0;
+            if (endDate) {
+                duration = (endDate - bookingDate) / (1000 * 60 * 60);
+            }
 
             return {
                 id: doc.id,
                 name: data.customerName,
-                time: bookingDate.toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                }),
+                time: bookingDate.toISOString(), // Start time
+                endTime: endDate ? endDate.toISOString() : null,
+                duration: duration > 0 ? parseFloat(duration.toFixed(1)) : 0,
                 devices: transformDevicesToArray(data.devices || {})
             };
         });
@@ -221,6 +234,106 @@ const getUpcomingBookings = async (req, res) => {
         console.error('❌ getUpcomingBookings error:', error);
         return res.status(500).json({
             message: 'Error fetching bookings'
+        });
+    }
+};
+
+// Get device availability for a specific time range
+const getDeviceAvailabilityForTime = async (req, res) => {
+    try {
+        const { startTime, endTime } = req.query;
+
+        if (!startTime || !endTime) {
+            return res.status(400).json({ message: 'startTime and endTime are required' });
+        }
+
+        const requestStart = new Date(startTime);
+        const requestEnd = new Date(endTime);
+
+        // Define device limits
+        const LIMITS = {
+            ps: 5,
+            pc: 10,
+            vr: 3,
+            wheel: 2,
+            metabat: 4
+        };
+
+        // Initialize occupied devices
+        const occupied = {
+            ps: [],
+            pc: [],
+            vr: [],
+            wheel: [],
+            metabat: []
+        };
+
+        // Check active sessions that overlap with requested time
+        const activeSessions = await db.collection('sessions')
+            .where('status', '==', 'active')
+            .get();
+
+        activeSessions.forEach(doc => {
+            const session = doc.data();
+            const sessionStart = new Date(session.startTime);
+            const sessionDuration = session.duration || 1; // hours
+            const sessionEnd = new Date(sessionStart.getTime() + sessionDuration * 60 * 60 * 1000);
+
+            // Check if session overlaps with requested time
+            const overlaps = sessionStart < requestEnd && sessionEnd > requestStart;
+
+            if (overlaps && session.devices) {
+                Object.keys(session.devices).forEach(deviceKey => {
+                    const deviceNum = session.devices[deviceKey];
+                    if (deviceNum > 0 && !occupied[deviceKey].includes(deviceNum)) {
+                        occupied[deviceKey].push(deviceNum);
+                    }
+                });
+            }
+        });
+
+        // Check upcoming bookings that overlap with requested time
+        const upcomingBookings = await db.collection('bookings')
+            .where('status', '==', 'upcoming')
+            .get();
+
+        upcomingBookings.forEach(doc => {
+            const booking = doc.data();
+            const bookingStart = booking.bookingTime?.toDate
+                ? booking.bookingTime.toDate()
+                : new Date(booking.bookingTime);
+
+            const bookingEnd = booking.bookingEndTime?.toDate
+                ? booking.bookingEndTime.toDate()
+                : new Date(booking.bookingEndTime);
+
+            // Check if booking overlaps with requested time
+            const overlaps = bookingStart < requestEnd && bookingEnd > requestStart;
+
+            if (overlaps && booking.devices) {
+                Object.keys(booking.devices).forEach(deviceKey => {
+                    const deviceNum = booking.devices[deviceKey];
+                    if (deviceNum > 0 && !occupied[deviceKey].includes(deviceNum)) {
+                        occupied[deviceKey].push(deviceNum);
+                    }
+                });
+            }
+        });
+
+        console.log(`📊 Availability for ${startTime} to ${endTime}:`, {
+            limits: LIMITS,
+            occupied
+        });
+
+        return res.status(200).json({
+            limits: LIMITS,
+            occupied
+        });
+
+    } catch (error) {
+        console.error('❌ getDeviceAvailabilityForTime error:', error);
+        return res.status(500).json({
+            message: 'Error fetching time-based availability'
         });
     }
 };
@@ -317,4 +430,146 @@ const deleteSession = async (req, res) => {
     }
 };
 
-module.exports = { createSession, getActiveSessions, createBooking, getUpcomingBookings, getDeviceAvailability, updateSession, completeSession, deleteSession };
+const deleteBooking = async (req, res) => {
+    try {
+        const { id } = req.params;
+        await db.collection('bookings').doc(id).delete();
+        res.status(200).json({ message: 'Booking deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting booking:', error);
+        res.status(500).json({ message: 'Failed to delete booking' });
+    }
+};
+
+// Convert bookings to active sessions when their time arrives
+const convertBookingsToSessions = async (req, res) => {
+    try {
+        if (!db) {
+            console.error('❌ Database not initialized');
+            return res ? res.status(500).json({ message: 'Database not initialized' }) : null;
+        }
+
+        const now = new Date();
+        console.log(`🔄 Checking for bookings to convert at ${now.toISOString()}`);
+
+        // Get all upcoming bookings
+        const snapshot = await db
+            .collection('bookings')
+            .where('status', '==', 'upcoming')
+            .get();
+
+        if (snapshot.empty) {
+            console.log('📭 No upcoming bookings found');
+            return res ? res.status(200).json({ message: 'No bookings to convert', converted: 0 }) : { converted: 0 };
+        }
+
+        let convertedCount = 0;
+        const conversions = [];
+
+        for (const doc of snapshot.docs) {
+            const booking = doc.data();
+            const bookingTime = booking.bookingTime?.toDate
+                ? booking.bookingTime.toDate()
+                : new Date(booking.bookingTime);
+
+            // Check if booking time has arrived (within 1 minute tolerance)
+            const timeDiff = now - bookingTime;
+            const shouldStart = timeDiff >= 0 && timeDiff <= 60000; // Within 1 minute
+
+            if (shouldStart) {
+                console.log(`✅ Converting booking ${doc.id} for ${booking.customerName}`);
+
+                // Calculate duration from start and end times
+                let duration = 1; // Default 1 hour
+                if (booking.bookingEndTime) {
+                    const endTime = booking.bookingEndTime?.toDate
+                        ? booking.bookingEndTime.toDate()
+                        : new Date(booking.bookingEndTime);
+                    duration = (endTime - bookingTime) / (1000 * 60 * 60); // Convert to hours
+                }
+
+                // Count total devices for peopleCount estimation
+                const deviceCounts = booking.devices || {};
+                const totalDevices = Object.values(deviceCounts).reduce((sum, count) => sum + count, 0);
+                const estimatedPeople = Math.max(1, totalDevices); // At least 1 person
+
+                // Calculate price
+                const calculatedPrice = duration * estimatedPeople * PRICE_PER_HOUR_PER_PERSON;
+
+                // Create new session
+                const newSession = {
+                    customerName: booking.customerName,
+                    contactNumber: booking.contactNumber || '',
+                    duration: parseFloat(duration.toFixed(2)),
+                    peopleCount: estimatedPeople,
+                    snacks: '',
+                    devices: booking.devices || {},
+                    price: calculatedPrice,
+                    paidAmount: 0,
+                    remainingAmount: calculatedPrice,
+                    status: 'active',
+                    startTime: now.toISOString(),
+                    createdAt: now.toISOString(),
+                    convertedFromBooking: true,
+                    originalBookingId: doc.id
+                };
+
+                // Add to sessions collection
+                const sessionRef = await db.collection('sessions').add(newSession);
+                console.log(`✨ Created session ${sessionRef.id} from booking ${doc.id}`);
+
+                // Delete the booking
+                await db.collection('bookings').doc(doc.id).delete();
+                console.log(`🗑️ Deleted booking ${doc.id}`);
+
+                convertedCount++;
+                conversions.push({
+                    bookingId: doc.id,
+                    sessionId: sessionRef.id,
+                    customerName: booking.customerName
+                });
+            }
+        }
+
+        console.log(`✅ Converted ${convertedCount} booking(s) to active sessions`);
+
+        return res
+            ? res.status(200).json({
+                message: `Converted ${convertedCount} booking(s)`,
+                converted: convertedCount,
+                conversions
+            })
+            : { converted: convertedCount, conversions };
+
+    } catch (error) {
+        console.error('❌ Error converting bookings:', error);
+        return res
+            ? res.status(500).json({ message: 'Error converting bookings' })
+            : { error: error.message };
+    }
+};
+
+// Auto-check endpoint (can be called by cron or frontend polling)
+const autoConvertBookings = async () => {
+    try {
+        return await convertBookingsToSessions(null, null);
+    } catch (error) {
+        console.error('❌ Auto-convert error:', error);
+        return { error: error.message };
+    }
+};
+
+module.exports = {
+    createSession,
+    getActiveSessions,
+    createBooking,
+    getUpcomingBookings,
+    getDeviceAvailability,
+    getDeviceAvailabilityForTime,
+    updateSession,
+    completeSession,
+    deleteSession,
+    deleteBooking,
+    convertBookingsToSessions,
+    autoConvertBookings
+};

@@ -30,6 +30,9 @@ interface ActiveSession {
   duration: number;    // hours
   peopleCount: number;   // 🔥
   price: number;         // 🔥
+  paidAmount?: number;
+  remainingAmount?: number;
+
   devices: ('ps' | 'pc' | 'vr' | 'wheel' | 'metabat')[];
   status: string;
 }
@@ -179,7 +182,7 @@ const ActiveSessions = () => {
                   </div>
                   <div className="user-info">
                     <h4>{session.customer}</h4>
-                    <p>₹{session.price} • {session.peopleCount} Player{session.peopleCount > 1 ? 's' : ''}</p>
+                    <p>₹{session.remainingAmount} • {session.peopleCount} Player{session.peopleCount > 1 ? 's' : ''}</p>
                   </div>
                 </div>
 

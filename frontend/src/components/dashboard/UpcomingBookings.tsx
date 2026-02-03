@@ -1,20 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
-import { FaClock, FaChevronRight, FaChevronLeft } from 'react-icons/fa';
-import { FaPlaystation, FaDesktop, FaVrCardboard } from 'react-icons/fa';
+import { motion } from 'framer-motion';
+import { FaClock, FaChevronRight, FaChevronLeft, FaCalendarAlt, FaPlus, FaUser, FaUsers, FaTrash } from 'react-icons/fa';
+import { FaPlaystation, FaDesktop, FaVrCardboard, FaGamepad } from 'react-icons/fa';
 import { GiSteeringWheel, GiCricketBat } from 'react-icons/gi';
+import { MdAccessTime } from 'react-icons/md';
 import BookingModal from './BookingModal';
+import './UpcomingBookings.css';
 
-/* ---------------------------------------
-   Types
---------------------------------------- */
 type DeviceType = 'ps' | 'pc' | 'vr' | 'wheel' | 'metabat';
 
 interface Booking {
   id: string;
   name: string;
   time: string;
+  endTime?: string;
   devices: DeviceType[];
+  peopleCount?: number;
+  duration?: number;
 }
 
 const UpcomingBookings = () => {
@@ -22,14 +25,17 @@ const UpcomingBookings = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [currentTime, setCurrentTime] = useState(Date.now());
 
+  // Update current time every minute for countdown
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(Date.now()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
-  /* ---------------------------------------
-     Scroll Controls (UNCHANGED)
-  --------------------------------------- */
   const scroll = (direction: 'left' | 'right') => {
     if (scrollRef.current) {
-      const scrollAmount = 300;
+      const scrollAmount = 340;
       scrollRef.current.scrollBy({
         left: direction === 'left' ? -scrollAmount : scrollAmount,
         behavior: 'smooth'
@@ -37,195 +43,275 @@ const UpcomingBookings = () => {
     }
   };
 
-  /* ---------------------------------------
-     Fetch Upcoming Bookings
-  --------------------------------------- */
- const fetchBookings = async () => {
-  try {
-    const res = await axios.get(
-      'http://localhost:5000/api/sessions/upcoming'
-    );
-    setBookings(res.data);
-  } catch (error) {
-    console.error('Failed to load upcoming bookings', error);
-  } finally {
-    setLoading(false);
-  }
-};
-useEffect(() => {
-  fetchBookings();
-}, []);
+  const fetchBookings = async () => {
+    try {
+      const res = await axios.get('http://localhost:5000/api/sessions/upcoming');
+      setBookings(res.data);
+    } catch (error) {
+      console.error('Failed to load upcoming bookings', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  const handleDeleteBooking = async (id: string, name: string) => {
+    if (!window.confirm(`Are you sure you want to cancel the booking for ${name}?`)) {
+      return;
+    }
 
-  /* ---------------------------------------
-     JSX (UI UNCHANGED)
-  --------------------------------------- */
+    try {
+      await axios.delete(`http://localhost:5000/api/sessions/booking/${id}`);
+      fetchBookings(); // Refresh list
+    } catch (error) {
+      console.error('Error deleting booking:', error);
+      alert('Failed to delete booking. Please try again.');
+    }
+  };
+
+  useEffect(() => {
+    fetchBookings();
+  }, []);
+
+  // Get device icon
+  const getDeviceIcon = (device: DeviceType) => {
+    switch (device) {
+      case 'ps': return <FaPlaystation className="device-chip-icon" />;
+      case 'pc': return <FaDesktop className="device-chip-icon" />;
+      case 'vr': return <FaVrCardboard className="device-chip-icon" />;
+      case 'wheel': return <GiSteeringWheel className="device-chip-icon" />;
+      case 'metabat': return <GiCricketBat className="device-chip-icon" />;
+      default: return <FaGamepad className="device-chip-icon" />;
+    }
+  };
+
+  // Get device label
+  const getDeviceLabel = (device: DeviceType) => {
+    const labels = {
+      ps: 'PlayStation',
+      pc: 'PC Gaming',
+      vr: 'VR Station',
+      wheel: 'Racing Wheel',
+      metabat: 'Meta Bat'
+    };
+    return labels[device] || device.toUpperCase();
+  };
+
+  // Calculate time until booking
+  const getTimeUntil = (bookingTime: string) => {
+    const bookingDate = new Date(bookingTime);
+    const diff = bookingDate.getTime() - currentTime;
+
+    if (diff < 0) return 'Starting now';
+
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+    if (hours === 0) return `${minutes}m`;
+    if (hours < 24) return `${hours}h ${minutes}m`;
+
+    const days = Math.floor(hours / 24);
+    return `${days}d ${hours % 24}h`;
+  };
+
+  // Get booking status
+  const getBookingStatus = (bookingTime: string) => {
+    const bookingDate = new Date(bookingTime);
+    const diff = bookingDate.getTime() - currentTime;
+
+    const hours = diff / (1000 * 60 * 60);
+
+    if (hours < 1) return { label: 'Starting Soon', class: 'status-soon' };
+    if (hours < 6) return { label: 'Today', class: 'status-today' };
+    return { label: 'Upcoming', class: 'status-later' };
+  };
+
+  // Format time display
+  const formatTime = (timeString: string, endTimeString?: string) => {
+    const start = new Date(timeString);
+    const startStr = start.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+
+    if (endTimeString) {
+      const end = new Date(endTimeString);
+      const endStr = end.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+      return `${startStr} - ${endStr}`;
+    }
+
+    return startStr;
+  };
+
+  // Format date display
+  const formatDate = (timeString: string) => {
+    const date = new Date(timeString);
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    if (date.toDateString() === today.toDateString()) return 'Today';
+    if (date.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
+
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
   return (
-    <section className="upcoming-section">
-      <div className="section-header">
-        <h3 className="section-title">Upcoming Bookings</h3>
-        <div className="nav-controls">
-          <button className="nav-btn" onClick={() => scroll('left')}>
+    <section className="upcoming-bookings-container">
+      <div className="bookings-header">
+        <div className="bookings-header-left">
+          <h3 className="bookings-title">
+            <FaCalendarAlt style={{ color: '#3b82f6' }} />
+            Upcoming Bookings
+          </h3>
+          <p className="bookings-subtitle">
+            {bookings.length} scheduled sessions
+          </p>
+        </div>
+
+        <div className="bookings-actions">
+          <button className="scroll-btn" onClick={() => scroll('left')}>
             <FaChevronLeft />
           </button>
-          <button className="nav-btn" onClick={() => scroll('right')}>
+          <button className="scroll-btn" onClick={() => scroll('right')}>
             <FaChevronRight />
           </button>
+
+          <button className="new-booking-btn" onClick={() => setShowModal(true)}>
+            <FaPlus />
+            New Booking
+          </button>
         </div>
-        <button
-  className="btn-primary"
-  onClick={() => setShowModal(true)}
->
-  New Booking
-</button>
-
       </div>
 
-      <div className="bookings-scroller" ref={scrollRef}>
-        {loading && (
-          <p style={{ color: 'var(--text-muted)' }}>Loading...</p>
-        )}
-
-        {!loading && bookings.map((booking) => (
-          <div key={booking.id} className="booking-card">
-            <div className="booking-time">
-              <FaClock className="clock-icon" />
-              <span>{booking.time}</span>
-            </div>
-
-            <div className="booking-info">
-              <span className="booking-name">{booking.name}</span>
-
-              <div
-                className="booking-devices"
-                style={{ display: 'flex', gap: '4px', marginTop: '4px' }}
-              >
-                {booking.devices.map((d, i) => (
-                  <span key={i} style={{ color: 'var(--text-secondary)' }}>
-                    {d === 'ps' && <FaPlaystation size={12} />}
-                    {d === 'pc' && <FaDesktop size={12} />}
-                    {d === 'vr' && <FaVrCardboard size={12} />}
-                    {d === 'wheel' && <GiSteeringWheel size={12} />}
-                    {d === 'metabat' && <GiCricketBat size={12} />}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="decoration-bar"></div>
+      {loading ? (
+        <div className="loading-state">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="skeleton-card" />
+          ))}
+        </div>
+      ) : bookings.length === 0 ? (
+        <div className="empty-bookings-state">
+          <div className="empty-icon">
+            <FaCalendarAlt />
           </div>
-        ))}
+          <h4 className="empty-title">No Upcoming Bookings</h4>
+          <p className="empty-subtitle">
+            Schedule a new booking to see it here
+          </p>
 
-       {showModal && (
-  <BookingModal
-    onClose={() => setShowModal(false)}
-    onSuccess={() => {
-      setShowModal(false);
-      fetchBookings(); // refresh list properly
-    }}
-  />
-)}
+        </div>
+      ) : (
+        <div className="bookings-timeline" ref={scrollRef}>
+          {bookings.map((booking, index) => {
+            const status = getBookingStatus(booking.time);
+            const timeUntil = getTimeUntil(booking.time);
 
+            return (
+              <motion.div
+                key={booking.id}
+                className="booking-card-premium"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <div className="booking-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                  <div className={`booking-status-badge ${status.class}`}>
+                    {status.label}
+                  </div>
+                  <button
+                    className="delete-booking-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteBooking(booking.id, booking.name);
+                    }}
+                    title="Cancel Booking"
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      border: 'none',
+                      color: '#ef4444',
+                      padding: '0.5rem',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <FaTrash size={14} />
+                  </button>
+                </div>
 
-      </div>
+                <div className="booking-time-section">
+                  <div className="booking-time-display">
+                    <div className="time-icon-wrapper">
+                      <MdAccessTime />
+                    </div>
+                    <div className="time-text">
+                      <span className="time-value">{formatTime(booking.time, booking.endTime)}</span>
+                      <span className="time-label">{formatDate(booking.time)}</span>
+                    </div>
+                  </div>
 
-      {/* 🔥 ORIGINAL STYLES — UNCHANGED */}
-      <style>{`
-        .upcoming-section {
-          margin-top: 2rem;
-          padding-top: 1rem;
-          border-top: 1px solid var(--border-color);
-        }
+                  <div className="countdown-timer">
+                    <FaClock style={{ fontSize: '0.75rem' }} />
+                    <span>Starts in</span>
+                    <span className="countdown-value">{timeUntil}</span>
+                  </div>
+                </div>
 
-        .section-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 1rem;
-        }
+                <div className="booking-customer-section">
+                  <div className="customer-name">{booking.name}</div>
+                  <div className="customer-meta">
+                    {booking.peopleCount && (
+                      <div className="meta-item">
+                        {booking.peopleCount === 1 ? <FaUser /> : <FaUsers />}
+                        <span>{booking.peopleCount} {booking.peopleCount === 1 ? 'person' : 'people'}</span>
+                      </div>
+                    )}
+                    {booking.duration && booking.duration > 0 && (
+                      <>
+                        <span>•</span>
+                        <div className="meta-item">
+                          <FaClock />
+                          <span>{booking.duration}h session</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
 
-        .nav-controls {
-          display: flex;
-          gap: 10px;
-        }
+                <div className="booking-devices-section">
+                  {Array.from(new Set(booking.devices)).map((device, i) => (
+                    <div key={i} className="device-chip">
+                      {getDeviceIcon(device)}
+                      <span>{getDeviceLabel(device)}</span>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
 
-        .nav-btn {
-          background: rgba(255, 255, 255, 0.05);
-          border: none;
-          color: var(--text-primary);
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: background 0.2s;
-        }
-        .nav-btn:hover {
-          background: var(--accent-yellow);
-          color: #000;
-        }
-
-        .bookings-scroller {
-          display: flex;
-          overflow-x: auto;
-          gap: 1.5rem;
-          padding-bottom: 1rem;
-          scrollbar-width: none;
-        }
-        .bookings-scroller::-webkit-scrollbar {
-          display: none;
-        }
-
-        .booking-card {
-          min-width: 240px;
-          background: linear-gradient(
-            145deg,
-            rgba(26, 60, 94, 0.4),
-            rgba(15, 22, 35, 0.8)
-          );
-          border-radius: 12px;
-          padding: 1.25rem;
-          position: relative;
-          overflow: hidden;
-          border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .booking-time {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          color: var(--accent-yellow);
-          font-weight: 600;
-          font-size: 0.9rem;
-          margin-bottom: 0.75rem;
-        }
-
-        .booking-name {
-          display: block;
-          font-weight: 500;
-          color: var(--text-primary);
-          margin-bottom: 4px;
-        }
-
-        .booking-devices {
-          font-size: 0.8rem;
-          color: var(--text-muted);
-        }
-
-        .decoration-bar {
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          width: 100%;
-          height: 3px;
-          background: linear-gradient(
-            90deg,
-            var(--accent-yellow),
-            transparent
-          );
-        }
-      `}</style>
+      {showModal && (
+        <BookingModal
+          onClose={() => setShowModal(false)}
+          onSuccess={() => {
+            setShowModal(false);
+            fetchBookings();
+          }}
+        />
+      )}
     </section>
   );
 };

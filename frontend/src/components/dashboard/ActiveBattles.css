@@ -1,0 +1,203 @@
+/* ActiveBattles.css */
+
+.active-battles-container {
+    margin-bottom: 2rem;
+    font-family: 'Inter', sans-serif;
+}
+
+.battles-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding: 0 0.5rem;
+}
+
+.battles-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.battles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem;
+}
+
+.battle-card {
+    background: #18181b;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    /* Slight border */
+    border-radius: 20px;
+    overflow: hidden;
+    position: relative;
+    transition: all 0.3s ease;
+    cursor: default;
+}
+
+.battle-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 4px;
+    background: linear-gradient(to bottom, #ef4444, #eab308);
+}
+
+.battle-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.battle-status-bar {
+    background: rgba(255, 255, 255, 0.03);
+    padding: 0.5rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+    color: #a1a1aa;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.live-badge {
+    color: #ef4444;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.live-dot {
+    width: 6px;
+    height: 6px;
+    background: #ef4444;
+    border-radius: 50%;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.5;
+        transform: scale(1.2);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.battle-content {
+    padding: 1.5rem;
+}
+
+/* VS Layout */
+.battle-vs-layout {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+}
+
+.player-side {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.player-side.challenger {
+    text-align: right;
+    align-items: flex-end;
+}
+
+.player-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #f4f4f5;
+    line-height: 1.2;
+}
+
+.player-score {
+    font-size: 2rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: #fff;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.crown-hold {
+    color: #eab308;
+    text-shadow: 0 0 20px rgba(234, 179, 8, 0.3);
+}
+
+.chal-hold {
+    color: #3b82f6;
+    text-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+}
+
+.vs-divider {
+    font-size: 1.5rem;
+    font-weight: 900;
+    font-style: italic;
+    color: #ef4444;
+    /* Red VS */
+    padding: 0 1rem;
+    z-index: 1;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.player-meta {
+    font-size: 0.75rem;
+    color: #71717a;
+    margin-top: 4px;
+}
+
+/* Actions Footer */
+.battle-footer {
+    padding: 0.75rem 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.action-btn {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #a1a1aa;
+    font-size: 0.75rem;
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.action-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.action-btn.finish {
+    border-color: rgba(16, 185, 129, 0.3);
+    color: #10b981;
+}
+
+.action-btn.finish:hover {
+    background: rgba(16, 185, 129, 0.1);
+}

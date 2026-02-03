@@ -1,0 +1,183 @@
+/* Variables */
+:root {
+    --gold-primary: #FFD700;
+    --gold-glow: rgba(255, 215, 0, 0.15);
+
+    --blue-dark: #0f172a;
+    --blue-card: rgba(30, 41, 59, 0.6);
+    --blue-highlight: #3b82f6;
+
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-shiny: rgba(255, 255, 255, 0.05);
+}
+
+.modern-glass-panel {
+    background: var(--blue-card);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.modern-glass-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+}
+
+/* Typography */
+.modern-title {
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    background: linear-gradient(to right, #fff, #cbd5e1);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 1rem;
+}
+
+.text-2xl {
+    font-size: 1.5rem;
+}
+
+.text-xl {
+    font-size: 1.25rem;
+}
+
+/* Badges */
+.modern-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 99px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border: 1px solid transparent;
+}
+
+.modern-badge.positive {
+    background: rgba(234, 179, 8, 0.15);
+    /* Gold/Yellow */
+    color: #facc15;
+    border-color: rgba(234, 179, 8, 0.2);
+}
+
+.modern-badge.negative {
+    background: rgba(59, 130, 246, 0.15);
+    /* Blue instead of Red to keep palette? Or Red? User allowed Gray/Red if needed, but Gold/Blue pref. Let's use Red for negative as it's standard financial */
+    color: #f87171;
+    border-color: rgba(248, 113, 113, 0.2);
+}
+
+/* Tabs */
+.modern-tabs {
+    display: flex;
+    background: rgba(15, 23, 42, 0.6);
+    padding: 4px;
+    border-radius: 12px;
+    border: 1px solid var(--glass-border);
+    width: fit-content;
+    gap: 4px;
+}
+
+.modern-tab-item {
+    padding: 8px 16px;
+    border-radius: 8px;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    font-weight: 500;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.modern-tab-item.active {
+    background: var(--blue-highlight);
+    color: white;
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+}
+
+.modern-tab-item:hover:not(.active) {
+    color: white;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* Buttons */
+.modern-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+}
+
+.modern-btn.primary {
+    background: linear-gradient(135deg, var(--blue-highlight), #2563eb);
+    color: white;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.modern-btn.ghost {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-muted);
+    border: 1px solid var(--glass-border);
+}
+
+/* Stats */
+.stat-card-wrapper {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+}
+
+.stat-icon-bg {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    opacity: 0.1;
+    transform: scale(1.5) rotate(10deg);
+}
+
+.stat-content {
+    position: relative;
+    z-index: 2;
+}
+
+.flex-between {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+}
+
+.stat-label {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: white;
+    letter-spacing: -0.5px;
+}

@@ -14,6 +14,7 @@ import { GiSteeringWheel, GiCricketBat } from 'react-icons/gi';
 import axios from 'axios';
 import './SessionEntry.css';
 import './UpdateSessionModal.css'; // Reuse modal styles
+import { calculateSessionPrice, isFunNightTime, isNormalHourTime } from '../../utils/pricing';
 
 /* ---------------- TYPES ---------------- */
 
@@ -41,62 +42,9 @@ interface Props {
     onClose: () => void;
 }
 
-/* ------------- DEVICE WIDGET (DROPDOWN) ------------ */
-// Copied from SessionEntry.tsx
+import DeviceDropdown from './DeviceDropdown';
 
-interface DeviceDropdownProps {
-    label: string;
-    limit: number;
-    value: number;
-    occupied: number[];
-    icon: React.ReactNode;
-    onChange: (val: number) => void;
-}
-
-const DeviceDropdown: React.FC<DeviceDropdownProps> = ({
-    label,
-    limit,
-    value,
-    occupied,
-    icon,
-    onChange
-}) => {
-    const isActive = value > 0;
-    const availableCount = limit - occupied.length;
-    const isEssentiallyFull = availableCount <= 0;
-
-    return (
-        <div className={`device-card-item ${isActive ? 'active' : ''} ${isEssentiallyFull ? 'sold-out' : ''}`}>
-            <div className="device-icon-wrapper">
-                {icon}
-            </div>
-            <div className="device-info">
-                <span className="device-name">{label}</span>
-                <span className="device-stock">
-                    {isEssentiallyFull ? 'Occupied' : `${availableCount} available`}
-                </span>
-            </div>
-
-            <div className="dropdown-control" onClick={(e) => e.stopPropagation()}>
-                <select
-                    className="mini-select"
-                    value={value}
-                    onChange={(e) => onChange(Number(e.target.value))}
-                >
-                    <option value={0}>None</option>
-                    {Array.from({ length: limit }, (_, i) => i + 1).map(num => {
-                        const isTaken = occupied.includes(num);
-                        return (
-                            <option key={num} value={num} disabled={isTaken}>
-                                {num} {isTaken ? '(Occupied)' : ''}
-                            </option>
-                        );
-                    })}
-                </select>
-            </div>
-        </div>
-    );
-};
+import SnackSelector from './SnackSelector';
 
 /* ---------------- MAIN ---------------- */
 
@@ -160,6 +108,8 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
     const PRICE_PER_HOUR_PER_PERSON = 50;
 
+    const [snackCost, setSnackCost] = useState<number>(0);
+
     /* ---------- SAFE DURATION ---------- */
     const durationStr = form.duration || "00:00";
     const parts = durationStr.split(":");
@@ -167,8 +117,17 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
     const m = Number(parts[1]) || 0;
     const durationInHours = h + m / 60;
 
-    const totalPrice =
-        durationInHours * form.peopleCount * PRICE_PER_HOUR_PER_PERSON;
+    // Pricing Logic
+    const deviceMap = (form.devices as unknown) as Record<string, number>;
+    const basePrice = calculateSessionPrice(
+        durationInHours,
+        form.peopleCount,
+        deviceMap
+    );
+    const totalPrice = basePrice + snackCost;
+    const isFunNight = isFunNightTime();
+    const isNormalHour = isNormalHourTime();
+
     /* ----------------------------------- */
 
     const startSession = async () => {
@@ -205,12 +164,7 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
         }
     };
 
-    const snackOptions = [
-        { label: "None", value: "" },
-        { label: "Chips", value: "chips" },
-        { label: "Drinks", value: "drinks" },
-        { label: "Combo", value: "combo" }
-    ];
+
 
     /* -----------------------------
        JSX
@@ -230,6 +184,8 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
                         <div className="modal-header">
                             <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <FaRocket className="text-blue-500" /> Start New Session
+                                {isFunNight && <span style={{ color: '#ec4899', fontSize: '0.7em', border: '1px solid #ec4899', padding: '2px 8px', borderRadius: '12px', marginLeft: 8 }}>🌙 Fun Night</span>}
+                                {isNormalHour && <span style={{ color: '#3b82f6', fontSize: '0.7em', border: '1px solid #3b82f6', padding: '2px 8px', borderRadius: '12px', marginLeft: 8 }}>☀️ Normal Hour</span>}
                             </h2>
                             <button className="close-icon-btn" onClick={onClose}>
                                 <FaTimes />
@@ -298,17 +254,13 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
                                 </div>
 
                                 <div className="field-group" style={{ gridColumn: '1 / -1' }}>
-                                    <label className="field-label">Snacks / Combo</label>
-                                    <select
-                                        className="field-input"
-                                        value={form.snacks}
-                                        style={{ width: '100%', appearance: 'none', cursor: 'pointer' }}
-                                        onChange={e => updateField('snacks', e.target.value)}
-                                    >
-                                        {snackOptions.map(opt => (
-                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                        ))}
-                                    </select>
+                                    <label className="field-label" style={{ marginBottom: '0.5rem', display: 'block' }}>Snacks / Combo</label>
+                                    <SnackSelector
+                                        onChange={(val, cost) => {
+                                            updateField('snacks', val);
+                                            setSnackCost(cost);
+                                        }}
+                                    />
                                 </div>
                             </div>
 
@@ -367,15 +319,17 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
                         {/* Footer - Moved outside scroller for stickiness */}
                         <div className="action-bar" style={{ borderRadius: '0 0 24px 24px' }}>
-                            <div className="price-display">
-                                <span className="price-label">Estimated Total</span>
-                                <span className="price-val">₹{Math.round(totalPrice)}</span>
-                            </div>
+                            {Object.values(form.devices).some(val => val > 0) && (
+                                <div className="price-display">
+                                    <span className="price-label">Estimated Total</span>
+                                    <span className="price-val">₹{Math.round(totalPrice)}</span>
+                                </div>
+                            )}
 
                             <button
                                 className="start-session-btn"
                                 onClick={startSession}
-                                disabled={!form.customerName || (durationInHours <= 0)}
+                                disabled={!form.customerName || (durationInHours <= 0) || !Object.values(form.devices).some(val => val > 0)}
                                 style={{ height: '42px', boxShadow: 'none' }} // Adjust to fit modal footer
                             >
                                 Start Session

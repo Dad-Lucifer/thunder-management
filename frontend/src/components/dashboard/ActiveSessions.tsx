@@ -4,6 +4,7 @@ import { FaPlaystation, FaDesktop, FaVrCardboard, FaClock, FaGamepad } from 'rea
 import { GiSteeringWheel, GiCricketBat } from 'react-icons/gi';
 import UpdateSessionModal from './UpdateSessionModal';
 import './ActiveSessions.css';
+import { isFunNightTime, isNormalHourTime } from '../../utils/pricing';
 
 /* ---------------------------------------
    Device Icon Helper
@@ -63,6 +64,9 @@ const ActiveSessions = () => {
 
   // Real-time ticking
   const [currentTime, setCurrentTime] = useState(Date.now());
+  const isFunNight = isFunNightTime();
+  const isNormalHour = isNormalHourTime();
+
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
     return () => clearInterval(timer);
@@ -103,15 +107,6 @@ const ActiveSessions = () => {
     const totalDurationMs = session.duration * 60 * 60 * 1000;
     const end = start + totalDurationMs;
 
-    // We need currentTime state to make this dynamic, but we can use Date.now() for initial render
-    // However, to make it tick we need state. 
-    // Wait, the previous full replace included 'currentTime' state. 
-    // Since I am editing a chunk, I assume 'currentTime' state is missing from my previous smaller edit?
-    // Actually the previous full replace FAILED. So i am editing the OLD file.
-    // The OLD file does NOT have currentTime state.
-    // So I will use Date.now() but it won't tick every second unless I add state.
-    // Let's stick to simple implementation for now to fix the errors.
-
     const now = currentTime;
     const elapsed = now - start;
     const remaining = end - now;
@@ -143,7 +138,10 @@ const ActiveSessions = () => {
 
       {/* Header */}
       <div className="sessions-header">
-        <h3 className="section-title-lg">Active Sessions</h3>
+        <h3 className="section-title-lg">Active Sessions
+          {isFunNight && <span style={{ color: '#ec4899', fontSize: '0.6em', border: '1px solid #ec4899', padding: '2px 8px', borderRadius: '12px', marginLeft: 8, verticalAlign: 'middle' }}>🌙 Fun Night</span>}
+          {isNormalHour && <span style={{ color: '#3b82f6', fontSize: '0.6em', border: '1px solid #3b82f6', padding: '2px 8px', borderRadius: '12px', marginLeft: 8, verticalAlign: 'middle' }}>☀️ Normal Hour</span>}
+        </h3>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <span style={{ fontSize: '0.9rem', color: '#a1a1aa' }}>
             {sessions.length} Players Online

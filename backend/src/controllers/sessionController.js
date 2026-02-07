@@ -1,7 +1,6 @@
 const { db } = require('../config/firebase');
 const deviceLimits = require("../config/deviceLimit");
-const PRICE_PER_HOUR_PER_PERSON = 50;
-
+const { calculateSessionPrice } = require('../utils/pricing');
 
 // Helper to transform device counts object to array of strings for frontend
 const transformDevicesToArray = (deviceCounts) => {
@@ -53,7 +52,7 @@ const createSession = async (req, res) => {
     try {
         const {
             customerName, contactNumber, duration,
-            peopleCount, snacks, devices
+            peopleCount, snacks, devices, price
         } = req.body;
 
         // 1. Get currently occupied IDs
@@ -72,10 +71,20 @@ const createSession = async (req, res) => {
             });
         });
 
-        const calculatedPrice =
-            (parseFloat(duration) || 1) *
-            (parseInt(peopleCount) || 1) *
-            PRICE_PER_HOUR_PER_PERSON;
+        // Calculate base price using shared logic
+        const durationVal = parseFloat(duration) || 1;
+        const peopleVal = parseInt(peopleCount) || 1;
+        const devicesVal = devices || {};
+
+        const basePrice = calculateSessionPrice(
+            durationVal,
+            peopleVal,
+            devicesVal,
+            new Date()
+        );
+
+        // Use the price sent from frontend (which includes snacks) or fallback to calculated base
+        const finalPrice = price ? parseFloat(price) : basePrice;
 
         // 2. Validate availability (Check if ID is taken)
         for (const key in devices) {
@@ -100,11 +109,11 @@ const createSession = async (req, res) => {
         const newSession = {
             customerName,
             contactNumber,
-            duration: parseFloat(duration) || 1,
-            peopleCount: parseInt(peopleCount) || 1,
+            duration: durationVal,
+            peopleCount: peopleVal,
             snacks: snacks || '',
             devices: devices || {}, // { ps: 5 }
-            price: calculatedPrice,
+            price: finalPrice,
             status: 'active',
             startTime: new Date().toISOString(),
             createdAt: new Date().toISOString()
@@ -493,8 +502,13 @@ const convertBookingsToSessions = async (req, res) => {
                 const totalDevices = Object.values(deviceCounts).reduce((sum, count) => sum + count, 0);
                 const estimatedPeople = Math.max(1, totalDevices); // At least 1 person
 
-                // Calculate price
-                const calculatedPrice = duration * estimatedPeople * PRICE_PER_HOUR_PER_PERSON;
+                // Calculate price using shared logic
+                const calculatedPrice = calculateSessionPrice(
+                    parseFloat(duration.toFixed(2)),
+                    estimatedPeople,
+                    booking.devices || {},
+                    now // Use current time for pricing rules
+                );
 
                 // Create new session
                 const newSession = {

@@ -16,6 +16,9 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/battles', require('./routes/battleRoutes'));
+// app.js or server.js
+app.use('/api/analytics', require('./routes/analyticsRoutes'));
+
 
 
 

@@ -1,5 +1,4 @@
 
-import React from 'react';
 import { motion } from 'framer-motion';
 import DashboardLayout from '../layouts/DashboardLayout';
 import StatCard from '../components/analytics/StatCard';
@@ -12,9 +11,33 @@ import BattleLeaderboard from '../components/analytics/BattleLeaderboard';
 import ThunderCoinsLeaderboard from '../components/analytics/ThunderCoinsLeaderboard';
 import { FaUserFriends, FaGamepad, FaHamburger } from 'react-icons/fa';
 import { MdTrendingUp } from 'react-icons/md';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+
 
 
 const Analytics: React.FC = () => {
+    const [stats, setStats] = useState({
+        totalEntries: 0,
+        mostPopularDevice: '—',
+        topSnack: '—',
+        peakHour: '—'
+    });
+
+    useEffect(() => {
+        const fetchStats = async () => {
+            try {
+                const res = await axios.get('http://localhost:5000/api/analytics/last-24-hours');
+                setStats(res.data);
+            } catch (err) {
+                console.error('Analytics fetch error', err);
+            }
+        };
+
+        fetchStats();
+    }, []);
+
+
     return (
         <DashboardLayout>
             <div style={{ paddingBottom: '2rem' }}>
@@ -46,26 +69,26 @@ const Analytics: React.FC = () => {
                 }}>
                     <StatCard
                         title="Total Active Entries"
-                        value="42"
+                        value={stats.totalEntries}
                         icon={<FaUserFriends />}
-                        trend="+12%"
+                        // trend="+12%"
                         trendIcon={<MdTrendingUp />}
                     />
                     <StatCard
                         title="Most Popular Device"
-                        value="PC - High End"
+                        value={stats.mostPopularDevice.toUpperCase()}
                         icon={<FaGamepad />}
                         color="var(--accent-yellow)"
                     />
                     <StatCard
                         title="Top Selling Snack"
-                        value="Spicy Nachos"
+                        value={stats.topSnack}
                         icon={<FaHamburger />}
                         color="#f59e0b"
                     />
                     <StatCard
                         title="Peak Activity"
-                        value="8:00 PM"
+                        value={stats.peakHour}
                         icon={<MdTrendingUp />}
                         color="#10b981"
                     />

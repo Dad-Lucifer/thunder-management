@@ -101,7 +101,7 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
     useEffect(() => {
         if (isOpen) {
             fetchAvailability();
-            const interval = setInterval(fetchAvailability, 5000); // Poll every 5s
+            const interval = setInterval(fetchAvailability, 30000); // Poll every 5s
             return () => clearInterval(interval);
         }
     }, [isOpen]);

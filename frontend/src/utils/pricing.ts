@@ -1,8 +1,34 @@
+export const isHappyHourTime = (date: Date = new Date()): boolean => {
+    const day = date.getDay(); // 0 = Sun, 6 = Sat
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+
+    // Before 9 AM → not Happy Hour
+    if (hours < 9) return false;
+
+    const isWeekend = day === 0 || day === 6;
+
+    // Mon–Fri: 9:00 AM – 2:00 PM
+    if (!isWeekend) {
+        if (hours < 14) return true;
+        if (hours === 14) return minutes === 0;
+        return false;
+    }
+
+    // Sat–Sun: 9:00 AM – 12:00 PM
+    if (hours < 12) return true;
+    if (hours === 12) return minutes === 0;
+
+    return false;
+};
+
+
 export const isFunNightTime = (date: Date = new Date()): boolean => {
     const hours = date.getHours();
     // 9:00 PM (21:00) to 6:00 AM
     return hours >= 21 || hours < 6;
 };
+
 
 export const isNormalHourTime = (date: Date = new Date()): boolean => {
     // Normal Hours:
@@ -27,6 +53,7 @@ export const isNormalHourTime = (date: Date = new Date()): boolean => {
         if (hours === 14) return minutes >= 1;
         return hours >= 14;
     }
+    return false;
 };
 
 export const calculateSessionPrice = (
@@ -37,119 +64,143 @@ export const calculateSessionPrice = (
 ): number => {
     const durationMinutes = durationHours * 60;
 
-    // Check Normal Hour first (Afternoon/Evening)
-    if (isNormalHourTime(startTime)) {
-        // --- NORMAL HOUR PRICING ---
-        const hasVR = (devices.vr || 0) > 0 || (devices.metabat || 0) > 0;
-        const hasWheel = (devices.wheel || 0) > 0;
-        const hasPS = (devices.ps || 0) > 0;
-        const hasPC = (devices.pc || 0) > 0;
+    const hasVR = (devices.vr || 0) > 0 || (devices.metabat || 0) > 0;
+    const hasWheel = (devices.wheel || 0) > 0;
+    const hasPS = (devices.ps || 0) > 0;
+    const hasPC = (devices.pc || 0) > 0;
 
-        if (hasVR) {
-            // VR & MetaBat
-            // 15m: 50, 30m: 100, 1h: 180
-            if (durationMinutes <= 15) return 50 * peopleCount;
-            if (durationMinutes <= 30) return 100 * peopleCount;
-            if (durationMinutes <= 60) return 180 * peopleCount;
-            // > 1h: 180 per hour pro-rated
-            return (durationMinutes / 60) * 180 * peopleCount;
-        }
+    // --------------------------------------------------
+    // 0️⃣ VR & METABAT (NO HAPPY HOUR / NO TIME RULES)
+    // --------------------------------------------------
+    if (hasVR) {
+        if (durationMinutes <= 15) return 50 * peopleCount;
+        if (durationMinutes <= 30) return 100 * peopleCount;
+        if (durationMinutes <= 60) return 180 * peopleCount;
 
-        if (hasWheel) {
-            // Wheel
-            // 1h: 150/p, 30m: 90/p, Extra 30m: 75/p
-            if (durationMinutes <= 30) return 90 * peopleCount;
-
-            // > 30m (so at least 1h usually, or 30m + extra)
-            // "1 Hour: 150"
-            const firstHourCost = 150;
-            const extraMinutes = Math.max(0, durationMinutes - 60);
-            const extra30Blocks = Math.ceil(extraMinutes / 30);
-            const extraCost = extra30Blocks * 75;
-
-            return (firstHourCost + extraCost) * peopleCount;
-        }
-
-        if (hasPC) {
-            // PC
-            // > 3h: 50/p/h
-            if (durationHours > 3) {
-                return 50 * peopleCount * durationHours;
-            }
-            // <= 3h
-            // 1h: 60/p, Extra 30m: 40/p
-            const firstHourCost = 60;
-            const extraMinutes = Math.max(0, durationMinutes - 60);
-            const extra30Blocks = Math.ceil(extraMinutes / 30);
-            return (firstHourCost + (extra30Blocks * 40)) * peopleCount;
-        }
-
-        if (hasPS) {
-            // PS5
-            // Solo(1h): 140
-            // Duo: 60/p
-            // Trio/Squad: 50/p
-            // Extra 30m: 40/p
-
-            let baseCost = 0;
-            if (peopleCount === 1) baseCost = 140;
-            else if (peopleCount === 2) baseCost = 60 * 2;
-            else baseCost = 50 * peopleCount;
-
-            const extraMinutes = Math.max(0, durationMinutes - 60);
-            const extra30Blocks = Math.ceil(extraMinutes / 30);
-            const extraCost = extra30Blocks * 40 * peopleCount;
-
-            return baseCost + extraCost;
-        }
-
-        // Fallback for normal hour if no devices matched (shouldn't happen)
-        return 0;
+        return (durationMinutes / 60) * 180 * peopleCount;
     }
 
-    // Check Fun Night Logic
-    if (isFunNightTime(startTime)) {
-        const hasVR = (devices.vr || 0) > 0 || (devices.metabat || 0) > 0;
-        const hasWheel = (devices.wheel || 0) > 0;
-        const hasPS = (devices.ps || 0) > 0;
-        const hasPC = (devices.pc || 0) > 0;
+    // --------------------------------------------------
+    // 1️⃣ HAPPY HOUR
+    // --------------------------------------------------
+    if (isHappyHourTime(startTime)) {
+        let total = 0;
 
-        if (hasVR) {
-            if (durationMinutes <= 15) return 50 * peopleCount;
-            if (durationMinutes <= 30) return 100 * peopleCount;
-            if (durationMinutes <= 60) return 180 * peopleCount;
-            return (durationMinutes / 60) * 180 * peopleCount;
+        // PS5
+        if (hasPS) {
+            if (durationMinutes <= 30) {
+                total += 40 * peopleCount;
+            } else {
+                const base =
+                    peopleCount === 1
+                        ? 90
+                        : 45 * peopleCount;
+
+                const extraMinutes = Math.max(0, durationMinutes - 60);
+                const extra30Blocks = Math.ceil(extraMinutes / 30);
+
+                total += base + (extra30Blocks * 30 * peopleCount);
+            }
         }
 
+        // PC
+        if (hasPC) {
+            if (durationMinutes <= 30) {
+                total += 40 * peopleCount;
+            } else {
+                const base = 50 * peopleCount;
+                const extraMinutes = Math.max(0, durationMinutes - 60);
+                const extra30Blocks = Math.ceil(extraMinutes / 30);
+
+                total += base + (extra30Blocks * 30 * peopleCount);
+            }
+        }
+
+        // Wheel
+        if (hasWheel) {
+            if (durationMinutes <= 30) {
+                total += 80 * peopleCount;
+            } else {
+                const base = 120 * peopleCount;
+                const extraMinutes = Math.max(0, durationMinutes - 60);
+                const extra30Blocks = Math.ceil(extraMinutes / 30);
+
+                total += base + (extra30Blocks * 60);
+            }
+        }
+
+        return total;
+    }
+
+    // --------------------------------------------------
+    // 2️⃣ NORMAL HOUR
+    // --------------------------------------------------
+    else if (isNormalHourTime(startTime)) {
         if (hasWheel) {
             if (durationMinutes <= 30) return 90 * peopleCount;
-            const firstHour = 150;
+
             const extraMinutes = Math.max(0, durationMinutes - 60);
             const extra30Blocks = Math.ceil(extraMinutes / 30);
-            return (firstHour + (extra30Blocks * 75)) * peopleCount;
+            return (150 + (extra30Blocks * 75)) * peopleCount;
         }
 
         if (hasPC) {
             if (durationHours > 3) return 50 * peopleCount * durationHours;
-            const firstHour = 50;
+
             const extraMinutes = Math.max(0, durationMinutes - 60);
             const extra30Blocks = Math.ceil(extraMinutes / 30);
-            return (firstHour + (extra30Blocks * 30)) * peopleCount;
+            return (60 + (extra30Blocks * 40)) * peopleCount;
         }
 
         if (hasPS) {
-            let baseCost = 0;
-            if (peopleCount === 1) baseCost = 100;
-            else baseCost = 50 * peopleCount; // Duo+
+            let baseCost;
+            if (peopleCount === 1) baseCost = 140;
+            else if (peopleCount === 2) baseCost = 120;
+            else baseCost = 50 * peopleCount;
+
+            const extraMinutes = Math.max(0, durationMinutes - 60);
+            const extra30Blocks = Math.ceil(extraMinutes / 30);
+            return baseCost + (extra30Blocks * 40 * peopleCount);
+        }
+
+        return 0;
+    }
+
+    // --------------------------------------------------
+    // 3️⃣ FUN NIGHT
+    // --------------------------------------------------
+    else if (isFunNightTime(startTime)) {
+        if (hasWheel) {
+            if (durationMinutes <= 30) return 90 * peopleCount;
+
+            const extraMinutes = Math.max(0, durationMinutes - 60);
+            const extra30Blocks = Math.ceil(extraMinutes / 30);
+            return (150 + (extra30Blocks * 75)) * peopleCount;
+        }
+
+        if (hasPC) {
+            if (durationHours > 3) return 50 * peopleCount * durationHours;
+
+            const extraMinutes = Math.max(0, durationMinutes - 60);
+            const extra30Blocks = Math.ceil(extraMinutes / 30);
+            return (50 + (extra30Blocks * 30)) * peopleCount;
+        }
+
+        if (hasPS) {
+            const baseCost =
+                peopleCount === 1 ? 100 : 50 * peopleCount;
 
             const extraMinutes = Math.max(0, durationMinutes - 60);
             const extra30Blocks = Math.ceil(extraMinutes / 30);
             return baseCost + (extra30Blocks * 30 * peopleCount);
         }
+
         return 0;
     }
 
-    // Default / Standard Pricing (Fallback)
-    // 50 per hour per person
+    // --------------------------------------------------
+    // 4️⃣ FALLBACK
+    // --------------------------------------------------
     return durationHours * peopleCount * 50;
 };
+

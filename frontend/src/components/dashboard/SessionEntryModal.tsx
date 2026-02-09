@@ -14,7 +14,7 @@ import { GiSteeringWheel, GiCricketBat } from 'react-icons/gi';
 import axios from 'axios';
 import './SessionEntry.css';
 import './UpdateSessionModal.css'; // Reuse modal styles
-import { calculateSessionPrice, isFunNightTime, isNormalHourTime } from '../../utils/pricing';
+import { calculateSessionPrice, isFunNightTime, isNormalHourTime, isHappyHourTime } from '../../utils/pricing';
 
 /* ---------------- TYPES ---------------- */
 
@@ -125,8 +125,11 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
         deviceMap
     );
     const totalPrice = basePrice + snackCost;
-    const isFunNight = isFunNightTime();
-    const isNormalHour = isNormalHourTime();
+
+    const isHappyHour = isHappyHourTime();
+const isFunNight = !isHappyHour && isFunNightTime();
+const isNormalHour = !isHappyHour && !isFunNight && isNormalHourTime();
+
 
     /* ----------------------------------- */
 
@@ -184,8 +187,51 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
                         <div className="modal-header">
                             <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <FaRocket className="text-blue-500" /> Start New Session
-                                {isFunNight && <span style={{ color: '#ec4899', fontSize: '0.7em', border: '1px solid #ec4899', padding: '2px 8px', borderRadius: '12px', marginLeft: 8 }}>🌙 Fun Night</span>}
-                                {isNormalHour && <span style={{ color: '#3b82f6', fontSize: '0.7em', border: '1px solid #3b82f6', padding: '2px 8px', borderRadius: '12px', marginLeft: 8 }}>☀️ Normal Hour</span>}
+                                {isHappyHour && (
+    <span
+        style={{
+            color: '#16a34a',
+            fontSize: '0.7em',
+            border: '1px solid #16a34a',
+            padding: '2px 8px',
+            borderRadius: '12px',
+            marginLeft: 8
+        }}
+    >
+        ⏰ Happy Hour
+    </span>
+)}
+
+{isFunNight && (
+    <span
+        style={{
+            color: '#ec4899',
+            fontSize: '0.7em',
+            border: '1px solid #ec4899',
+            padding: '2px 8px',
+            borderRadius: '12px',
+            marginLeft: 8
+        }}
+    >
+        🌙 Fun Night
+    </span>
+)}
+
+{isNormalHour && (
+    <span
+        style={{
+            color: '#3b82f6',
+            fontSize: '0.7em',
+            border: '1px solid #3b82f6',
+            padding: '2px 8px',
+            borderRadius: '12px',
+            marginLeft: 8
+        }}
+    >
+        ☀️ Normal Hour
+    </span>
+)}
+
                             </h2>
                             <button className="close-icon-btn" onClick={onClose}>
                                 <FaTimes />

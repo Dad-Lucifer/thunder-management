@@ -19,7 +19,7 @@ app.use('/api/battles', require('./routes/battleRoutes'));
 // app.js or server.js
 app.use('/api/analytics', require('./routes/analyticsRoutes'));
 app.use('/api/owner', require('./routes/ownerRoute'));
-
+app.use('/api/subscription', require('./routes/subscriptionRoute'));
 
 
 

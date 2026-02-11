@@ -3,6 +3,7 @@ import { MdDashboard, MdAnalytics, MdChevronLeft, MdChevronRight } from 'react-i
 import { useState } from 'react';
 import { FaUserShield, FaGamepad } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../../context/AuthContext';
 import './Sidebar.css';
 
 interface SidebarProps {
@@ -17,10 +18,19 @@ const navItems = [
 ];
 
 const Sidebar = ({ isCollapsed = false, toggleCollapsed }: SidebarProps) => {
+  const { user } = useAuth();
   const location = useLocation();
   const [hoveredPath, setHoveredPath] = useState<string | null>(null);
 
   const isActive = (path: string) => location.pathname === path;
+
+  // Filter items: Only show 'Owner' if user is owner
+  const displayedNavItems = navItems.filter(item => {
+    if (item.label === 'Owner') {
+      return user?.role === 'owner';
+    }
+    return true;
+  });
 
   return (
     <motion.aside
@@ -64,7 +74,7 @@ const Sidebar = ({ isCollapsed = false, toggleCollapsed }: SidebarProps) => {
       </div>
 
       <nav className="nav-menu">
-        {navItems.map((item) => {
+        {displayedNavItems.map((item) => {
           const active = isActive(item.path);
           return (
             <div key={item.path} className="nav-item-container">

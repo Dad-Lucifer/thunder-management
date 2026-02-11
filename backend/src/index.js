@@ -9,7 +9,11 @@ const authRoutes = require('./routes/authRoutes');
 const sessionRoutes = require('./routes/sessionRoutes');
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: "https://thunder-management-six.vercel.app",
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  credentials: true
+}));
 app.use(express.json());
 
 const snackRoutes = require('./routes/snackRoutes');

@@ -3,11 +3,14 @@ const app = require("./src/index");
 const { startBookingScheduler } = require("./src/services/bookingScheduler");
 
 const server = http.createServer(app);
-const io = require("socket.io")(server, {
-    cors: {
-        origin: "*"
-    }
+const io = new Server(server, {
+  cors: {
+    origin: "https://thunder-management-six.vercel.app",
+    methods: ["GET", "POST"],
+    credentials: true
+  }
 });
+
 
 // expose io globally
 global.io = io;

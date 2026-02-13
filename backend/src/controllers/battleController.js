@@ -237,15 +237,34 @@ exports.getThunderPlayer = async (req, res) => {
         if (!name || !phone) return res.status(400).json({ message: 'Name and phone are required' });
 
         const doc = await db.collection('battelwinner').doc(phone).get();
-        if (!doc.exists) return res.status(404).json({ message: 'Player not found' });
+
+        // If player doesn't exist, return 0 coins instead of 404 to avoid frontend errors
+        if (!doc.exists) {
+            return res.status(200).json({
+                name,
+                phone,
+                thunderCoins: 0,
+                isNew: true
+            });
+        }
 
         const data = doc.data();
+        // Case insensitive name check
         if (data.name.toLowerCase() !== name.toLowerCase()) {
-            return res.status(404).json({ message: 'Player not found' });
+            // Phone matches but name doesn't? treat as new or 0 to be safe
+            // Or maybe just return the data associated with phone?
+            // Let's assume strict match needed.
+            return res.status(200).json({
+                name,
+                phone,
+                thunderCoins: 0,
+                warning: 'Phone registered to different name'
+            });
         }
 
         res.status(200).json(data);
     } catch (error) {
+        console.error('Error fetching thunder player:', error);
         res.status(500).json({ message: 'Server error' });
     }
 };

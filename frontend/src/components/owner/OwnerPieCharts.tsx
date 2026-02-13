@@ -152,7 +152,7 @@ const OwnerPieCharts: React.FC<Props> = ({ timeFilter }) => {
                 <div className="flex flex-col lg:flex-row items-center gap-8 h-full">
 
                     {/* Left: Chart */}
-                    <div className="w-full lg:w-3/5 h-[300px] relative">
+                    <div className="w-full lg:w-3/5 h-[300px] relative min-w-[300px]">
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie

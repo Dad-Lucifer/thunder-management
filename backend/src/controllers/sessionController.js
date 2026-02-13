@@ -69,7 +69,7 @@ const createSession = async (req, res) => {
     try {
         const {
             customerName, contactNumber, duration,
-            peopleCount, snacks, devices, price, snackDetails
+            peopleCount, snacks, devices, price, snackDetails,  thunderCoinsUsed = 0 
         } = req.body;
 
         // Deduct snacks if provided
@@ -157,6 +157,30 @@ const createSession = async (req, res) => {
 
 
         const docRef = await db.collection('sessions').add(newSession);
+        // ================= THUNDER COIN DEDUCTION =================
+if (thunderCoinsUsed > 0 && contactNumber) {
+    try {
+        const playerRef = db.collection('battelwinner').doc(contactNumber);
+        const playerSnap = await playerRef.get();
+
+        if (playerSnap.exists) {
+            const currentCoins = playerSnap.data().thunderCoins || 0;
+
+            // prevent cheating (frontend manipulation safety)
+            const safeDeduction = Math.min(currentCoins, thunderCoinsUsed);
+
+            await playerRef.update({
+                thunderCoins: currentCoins - safeDeduction,
+                updatedAt: new Date().toISOString()
+            });
+
+            console.log(`⚡ Deducted ${safeDeduction} coins from ${contactNumber}`);
+        }
+    } catch (coinErr) {
+        console.error("Thunder coin deduction failed:", coinErr);
+    }
+}
+
 
         global.io.emit('session:started', {
             id: docRef.id,

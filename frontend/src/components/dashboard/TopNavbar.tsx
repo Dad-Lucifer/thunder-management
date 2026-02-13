@@ -61,7 +61,7 @@ const TopNavbar = () => {
   useEffect(() => {
     const checkExpiring = async () => {
       try {
-        const res = await axios.get('http://localhost:5173/api/sessions/active');
+        const res = await axios.get('https://thunder-management.onrender.com/api/sessions/active');
         const sessions: Session[] = res.data;
 
         const now = Date.now();

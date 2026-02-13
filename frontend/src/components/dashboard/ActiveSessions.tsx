@@ -23,7 +23,7 @@ const DeviceIcon = ({ type }: { type: string }) => {
 };
 
 
-const socket = io('http://localhost:5173', {
+const socket = io('https://thunder-management.onrender.com', {
   transports: ['websocket']
 });
 
@@ -55,7 +55,7 @@ const ActiveSessions = () => {
   --------------------------------------- */
   const fetchSessions = async () => {
     try {
-      const res = await axios.get('http://localhost:5173/api/sessions/active');
+      const res = await axios.get('https://thunder-management.onrender.com/api/sessions/active');
       setSessions(res.data);
     } catch (err) {
       console.error('Failed to load active sessions', err);
@@ -80,13 +80,13 @@ const ActiveSessions = () => {
 
     socket.on('session:updated', async () => {
       // Rare event → safe to refresh list once
-      const res = await axios.get('http://localhost:5173/api/sessions/active');
+      const res = await axios.get('https://thunder-management.onrender.com/api/sessions/active');
       setSessions(res.data);
     });
 
     socket.on('booking:converted', async () => {
       // booking → session happened
-      const res = await axios.get('http://localhost:5173/api/sessions/active');
+      const res = await axios.get('https://thunder-management.onrender.com/api/sessions/active');
       setSessions(res.data);
     });
 
@@ -121,7 +121,7 @@ const ActiveSessions = () => {
           processingRef.add(session.id);
           console.log(`Auto-completing session ${session.id} because time is up > 30s`);
 
-          axios.post(`http://localhost:5173/api/sessions/complete/${session.id}`)
+          axios.post(`https://thunder-management.onrender.com/api/sessions/complete/${session.id}`)
             .then(() => {
               // Success - socket will remove it, or we can manually remove
               // If selected session matches, close modal

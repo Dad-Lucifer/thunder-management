@@ -92,7 +92,7 @@ const SessionEntry: React.FC = () => {
       // Backend returns limits as numbers { ps: 6 } and occupied as arrays { ps: [1,2] }
       // We need to map `limits` properly if it comes as object
       const res = await axios.get<{ limits: Record<DeviceKeys, number>; occupied: { [key in DeviceKeys]: number[] } }>(
-        'http://localhost:5173/api/sessions/availability'
+        'https://thunder-management.onrender.com/api/sessions/availability'
       );
       setAvailability(res.data);
     } catch (e) {
@@ -136,7 +136,7 @@ const SessionEntry: React.FC = () => {
         return;
       }
 
-      await axios.post('http://localhost:5173/api/sessions/start', {
+      await axios.post('https://thunder-management.onrender.com/api/sessions/start', {
         ...form,
         duration: durationInHours,
         price: totalPrice

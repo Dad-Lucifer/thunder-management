@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { GiCrossedSwords } from 'react-icons/gi';
-import { FaTrophy } from 'react-icons/fa';
+
 import PlayersBattleModal from './PlayersBattleModal';
 import './PlayersBattle.css';
 

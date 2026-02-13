@@ -7,7 +7,7 @@ const { Server } = require("socket.io");
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "https://thunder-management-six.vercel.app",
+    origin: ["https://thunder-management-six.vercel.app", "http://localhost:5173", "http://localhost:5174"],
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -19,15 +19,15 @@ const io = new Server(server, {
 global.io = io;
 
 io.on("connection", (socket) => {
-    console.log("🟢 Client connected:", socket.id);
+  console.log("🟢 Client connected:", socket.id);
 
-    socket.on("disconnect", () => {
-        console.log("🔴 Client disconnected:", socket.id);
-    });
+  socket.on("disconnect", () => {
+    console.log("🔴 Client disconnected:", socket.id);
+  });
 });
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-    console.log(`Server running on PORT ${PORT}`);
-    startBookingScheduler();
+  console.log(`Server running on PORT ${PORT}`);
+  startBookingScheduler();
 });

@@ -41,6 +41,14 @@ interface Props {
     isOpen: boolean;
     onClose: () => void;
 }
+interface ThunderPlayer {
+    name: string;
+    phone: string;
+    thunderCoins: number;
+    createdAt?: string;
+    updatedAt?: string;
+}
+
 
 import DeviceDropdown from './DeviceDropdown';
 
@@ -49,6 +57,18 @@ import SnackSelector from './SnackSelector';
 /* ---------------- MAIN ---------------- */
 
 const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
+    const [playerData, setPlayerData] = useState<ThunderPlayer | null>(null);
+
+    const [isFetchingPlayer, setIsFetchingPlayer] = useState(false);
+    const thunderCoins = playerData?.thunderCoins ?? 0;
+    const playerFound = !!playerData;
+    const [coinsApplied, setCoinsApplied] = useState(false);
+const [coinDiscount, setCoinDiscount] = useState(0);
+const coinsUsed = coinsApplied ? (coinDiscount / 20) * 50 : 0;
+
+
+
+
     const [form, setForm] = useState<FormState>({
         customerName: '',
         contactNumber: '',
@@ -106,6 +126,51 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
         }
     }, [isOpen]);
 
+    useEffect(() => {
+
+        // Require BOTH name + phone
+        if (!form.customerName || form.contactNumber.length !== 10) {
+            setPlayerData(null);
+            return;
+        }
+
+        let cancelled = false;
+
+        const timer = setTimeout(async () => {
+            try {
+                setIsFetchingPlayer(true);
+
+                const res = await axios.get(
+                    "https://thunder-management.onrender.com/api/battles/thunder-player",
+                    {
+                        params: {
+                            name: form.customerName.trim(),
+                            phone: form.contactNumber
+                        }
+                    }
+                );
+
+                if (!cancelled) {
+                    setPlayerData(res.data); // fetch ONCE
+                }
+setCoinsApplied(false);
+setCoinDiscount(0);
+
+            } catch (error) {
+                if (!cancelled) setPlayerData(null);
+            } finally {
+                if (!cancelled) setIsFetchingPlayer(false);
+            }
+        }, 2000); // wait 2 seconds after user stops typing
+
+        return () => {
+            cancelled = true;
+            clearTimeout(timer);
+        };
+
+    }, [form.customerName, form.contactNumber]);
+
+
 
     const [snackCost, setSnackCost] = useState<number>(0);
     const [snackItems, setSnackItems] = useState<{ name: string; quantity: number }[]>([]);
@@ -124,12 +189,15 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
         form.peopleCount,
         deviceMap
     );
-    const totalPrice = basePrice + snackCost;
+    const totalPrice = basePrice + snackCost - coinDiscount;
+
 
     const isHappyHour = isHappyHourTime();
     const isFunNight = !isHappyHour && isFunNightTime();
     const isNormalHour = !isHappyHour && !isFunNight && isNormalHourTime();
 
+const redeemableBlocks = Math.floor(thunderCoins / 50);
+const maxDiscount = redeemableBlocks * 20;
 
     /* ----------------------------------- */
 
@@ -144,7 +212,8 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 ...form,
                 snackDetails: snackItems,
                 duration: durationInHours,
-                price: totalPrice
+                price: totalPrice,
+                 thunderCoinsUsed: coinsUsed 
             });
 
             alert('Session started 🚀');
@@ -161,6 +230,12 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
             setSnackItems([]); // Reset snacks
 
             onClose(); // Close modal on success
+setCoinDiscount(0);
+setCoinsApplied(false);
+setPlayerData(prev =>
+    prev ? { ...prev, thunderCoins: prev.thunderCoins - coinsUsed } : null
+);
+
 
         } catch (error: any) {
             console.error(error);
@@ -169,6 +244,28 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
         }
     };
 
+
+const toggleThunderCoins = () => {
+
+    // Cancel if already applied
+    if (coinsApplied) {
+        setCoinsApplied(false);
+        setCoinDiscount(0);
+        return;
+    }
+
+    // Apply
+    if (thunderCoins < 50) {
+        alert("Minimum 50 Thunder Coins required ⚡");
+        return;
+    }
+
+    const redeemableBlocks = Math.floor(thunderCoins / 50);
+    const discount = redeemableBlocks * 20;
+
+    setCoinDiscount(discount);
+    setCoinsApplied(true);
+};
 
 
     /* -----------------------------
@@ -286,7 +383,7 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
                                     </div>
                                 </div>
 
-                                <div className="field-group">
+                                <div className="field-group " >
                                     <label className="field-label">People Count</label>
                                     <div style={{ position: 'relative' }}>
                                         <input
@@ -299,7 +396,79 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
                                         />
                                         <FaUser style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#52525b' }} />
                                     </div>
+                                    {/* Thunder Coins Display */}
+
+
+
+
                                 </div>
+                                <div className="field-group " >
+                                    <label className="field-label">Thunder Coins</label>
+                                    <div
+                                        className="field-input"
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            height: "42px",
+                                            background: "#0f172a",
+                                            border: "1px solid #334155",
+                                            color: "#facc15",
+                                            fontWeight: 600,
+                                            gap: 8
+                                        }}
+                                    >
+                                        {isFetchingPlayer && <span style={{ color: "#3b82f6" }}>Checking player...</span>}
+
+                                        {!isFetchingPlayer && playerFound && (
+                                            <>
+                                                ⚡ {thunderCoins} Coins
+                                            </>
+                                        )}
+
+                                        {!isFetchingPlayer && form.contactNumber.length === 10 && !playerFound && (
+                                            <span style={{ color: "#10b981" }}>New Player</span>
+                                        )}
+
+                                        {!form.contactNumber && <span style={{ color: "#64748b" }}>Enter phone number</span>}
+                                    </div>
+                                </div>
+                <div style={{ marginTop: 35, display: "flex", flexDirection: "column", gap: 6 }}>
+
+    {/* Apply / Cancel Button */}
+    <button
+        type="button"
+        onClick={toggleThunderCoins}
+        disabled={thunderCoins < 50 && !coinsApplied}
+        style={{
+            width: "100%",
+            height: "40px",
+            fontSize: 13,
+            borderRadius: 6,              // rectangular look
+            border: "1px solid #334155",
+            cursor: thunderCoins >= 50 || coinsApplied ? "pointer" : "not-allowed",
+            background: coinsApplied ? "#ef4444" : (thunderCoins >= 50 ? "#eab308" : "#1e293b"),
+            color: coinsApplied ? "#ffffff" : "#020617",
+            fontWeight: 600,
+            letterSpacing: 0.4,
+            transition: "0.2s"
+        }}
+    >
+        {coinsApplied ? "Cancel Thunder Coins" : "Apply Thunder Coins"}
+    </button>
+
+    {/* Discount message below */}
+    {coinsApplied && (
+        <div style={{
+            fontSize: 12,
+            color: "#22c55e",
+            fontWeight: 500
+        }}>
+            ⚡ ₹{coinDiscount} discount applied
+        </div>
+    )}
+
+</div>
+
 
                                 <div className="field-group" style={{ gridColumn: '1 / -1' }}>
                                     <label className="field-label" style={{ marginBottom: '0.5rem', display: 'block' }}>Snacks / Combo</label>
@@ -370,11 +539,37 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
                         {/* Footer - Moved outside scroller for stickiness */}
                         <div className="action-bar" style={{ borderRadius: '0 0 24px 24px' }}>
                             {Object.values(form.devices).some(val => val.length > 0) && (
-                                <div className="price-display">
-                                    <span className="price-label">Estimated Total</span>
-                                    <span className="price-val">₹{Math.round(totalPrice)}</span>
-                                </div>
-                            )}
+        <div className="price-display" style={{ textAlign: "right" }}>
+
+            <span className="price-label">Estimated Total</span>
+
+            {/* Original price */}
+            {coinDiscount > 0 && (
+                <div style={{ fontSize: 12, color: "#94a3b8" }}>
+                    Original: ₹{Math.round(basePrice + snackCost)}
+                </div>
+            )}
+
+            {/* Thunder coin discount */}
+            {coinDiscount > 0 && (
+                <div style={{ fontSize: 12, color: "#22c55e", fontWeight: 600 }}>
+                    ⚡ Thunder Coins Discount: -₹{coinDiscount}
+                </div>
+            )}
+
+            {/* Final price */}
+            <span
+                className="price-val"
+                style={{
+                    color: coinDiscount > 0 ? "#22c55e" : undefined,
+                    fontSize: coinDiscount > 0 ? "1.4rem" : undefined
+                }}
+            >
+                ₹{Math.round(totalPrice)}
+            </span>
+
+        </div>
+    )}
 
                             <button
                                 className="start-session-btn"

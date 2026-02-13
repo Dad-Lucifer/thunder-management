@@ -1,42 +1,13 @@
 const { db } = require('../config/firebase');
 
-/**
- * ➕ Add Owner Subscription (Expense)
- */
-const addSubscription = async (req, res) => {
+/* -------------------------------------------------------------------------- */
+/*                                SUBSCRIPTIONS                               */
+/* -------------------------------------------------------------------------- */
+
+exports.getSubscriptions = async (req, res) => {
     try {
-        const { type, provider, cost, startDate, expiryDate } = req.body;
-
-        if (!type || !cost || !startDate || !expiryDate) {
-            return res.status(400).json({ message: 'Missing required fields' });
-        }
-
-        const sub = {
-            type,
-            provider: provider || '',
-            cost: Number(cost),
-            startDate,
-            expiryDate,
-            createdAt: new Date().toISOString(),
-            status: 'active' // Initial status, logic will handle "expired" on fetch/display
-        };
-
-        const ref = await db.collection('owner_subscriptions').add(sub);
-
-        res.status(201).json({ id: ref.id, ...sub });
-    } catch (err) {
-        console.error('Error adding subscription:', err);
-        res.status(500).json({ message: 'Failed to add subscription' });
-    }
-};
-
-/**
- * 📥 Get Owner Subscriptions
- */
-const getSubscriptions = async (req, res) => {
-    try {
-        const snapshot = await db.collection('owner_subscriptions')
-            .orderBy('expiryDate', 'asc')
+        const snapshot = await db.collection('management_subscriptions')
+            .orderBy('createdAt', 'desc')
             .get();
 
         const subscriptions = snapshot.docs.map(doc => ({
@@ -44,61 +15,60 @@ const getSubscriptions = async (req, res) => {
             ...doc.data()
         }));
 
-        res.json(subscriptions);
-    } catch (err) {
-        console.error('Error fetching subscriptions:', err);
-        res.status(500).json({ message: 'Failed to fetch subscriptions' });
+        res.status(200).json(subscriptions);
+    } catch (error) {
+        console.error('Error fetching subscriptions:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
     }
 };
 
-/**
- * 🗑️ Delete Owner Subscription
- */
-const deleteSubscription = async (req, res) => {
+exports.createSubscription = async (req, res) => {
     try {
-        const { id } = req.params;
-        await db.collection('owner_subscriptions').doc(id).delete();
-        res.json({ message: 'Deleted successfully' });
-    } catch (err) {
-        console.error('Error deleting subscription:', err);
-        res.status(500).json({ message: 'Failed to delete' });
-    }
-};
+        const { type, provider, cost, startDate, expiryDate } = req.body;
 
-/**
- * ➕ Add Salary Record
- */
-const addSalary = async (req, res) => {
-    try {
-        const { employeeName, amount, paymentDate, notes } = req.body;
-
-        if (!employeeName || !amount || !paymentDate) {
+        if (!type || !cost || !startDate || !expiryDate) {
             return res.status(400).json({ message: 'Missing required fields' });
         }
 
-        const salary = {
-            employeeName,
-            amount: Number(amount),
-            paymentDate,
-            notes: notes || '',
+        const newSub = {
+            type,
+            provider: provider || '',
+            cost: Number(cost),
+            startDate,
+            expiryDate,
             createdAt: new Date().toISOString()
         };
 
-        const ref = await db.collection('owner_salaries').add(salary);
+        const docRef = await db.collection('management_subscriptions').add(newSub);
 
-        res.status(201).json({ id: ref.id, ...salary });
-    } catch (err) {
-        console.error('Error adding salary:', err);
-        res.status(500).json({ message: 'Failed to add salary' });
+        res.status(201).json({
+            id: docRef.id,
+            ...newSub
+        });
+    } catch (error) {
+        console.error('Error creating subscription:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
     }
 };
 
-/**
- * 📥 Get Salary History
- */
-const getSalaries = async (req, res) => {
+exports.deleteSubscription = async (req, res) => {
     try {
-        const snapshot = await db.collection('owner_salaries')
+        const { id } = req.params;
+        await db.collection('management_subscriptions').doc(id).delete();
+        res.status(200).json({ message: 'Subscription deleted' });
+    } catch (error) {
+        console.error('Error deleting subscription:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+};
+
+/* -------------------------------------------------------------------------- */
+/*                                  SALARIES                                  */
+/* -------------------------------------------------------------------------- */
+
+exports.getSalaries = async (req, res) => {
+    try {
+        const snapshot = await db.collection('management_salaries')
             .orderBy('paymentDate', 'desc')
             .get();
 
@@ -107,32 +77,48 @@ const getSalaries = async (req, res) => {
             ...doc.data()
         }));
 
-        res.json(salaries);
-    } catch (err) {
-        console.error('Error fetching salaries:', err);
-        res.status(500).json({ message: 'Failed to fetch salaries' });
+        res.status(200).json(salaries);
+    } catch (error) {
+        console.error('Error fetching salaries:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
     }
 };
 
-/**
- * 🗑️ Delete Salary Record
- */
-const deleteSalary = async (req, res) => {
+exports.createSalary = async (req, res) => {
+    try {
+        const { employeeName, amount, paymentDate, notes } = req.body;
+
+        if (!employeeName || !amount || !paymentDate) {
+            return res.status(400).json({ message: 'Missing required fields' });
+        }
+
+        const newSalary = {
+            employeeName,
+            amount: Number(amount),
+            paymentDate,
+            notes: notes || '',
+            createdAt: new Date().toISOString()
+        };
+
+        const docRef = await db.collection('management_salaries').add(newSalary);
+
+        res.status(201).json({
+            id: docRef.id,
+            ...newSalary
+        });
+    } catch (error) {
+        console.error('Error creating salary:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+};
+
+exports.deleteSalary = async (req, res) => {
     try {
         const { id } = req.params;
-        await db.collection('owner_salaries').doc(id).delete();
-        res.json({ message: 'Deleted successfully' });
-    } catch (err) {
-        console.error('Error deleting salary:', err);
-        res.status(500).json({ message: 'Failed to delete' });
+        await db.collection('management_salaries').doc(id).delete();
+        res.status(200).json({ message: 'Salary record deleted' });
+    } catch (error) {
+        console.error('Error deleting salary:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
     }
-};
-
-module.exports = {
-    addSubscription,
-    getSubscriptions,
-    deleteSubscription,
-    addSalary,
-    getSalaries,
-    deleteSalary
 };

@@ -201,7 +201,6 @@ exports.getCompletedBattles = async (req, res) => {
 
         const snapshot = await db.collection('battles')
             .where('status', '==', 'completed')
-            .orderBy('endTime', 'desc') // Requires index, but much faster
             .limit(20)
             .get();
 
@@ -209,6 +208,8 @@ exports.getCompletedBattles = async (req, res) => {
             id: doc.id,
             ...doc.data()
         }));
+
+        battles.sort((a, b) => new Date(b.endTime) - new Date(a.endTime));
 
         res.status(200).json(battles);
     } catch (error) {

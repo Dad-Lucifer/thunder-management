@@ -1,22 +1,22 @@
 const express = require('express');
 const router = express.Router();
 const {
-    addSubscription,
     getSubscriptions,
+    createSubscription,
     deleteSubscription,
-    addSalary,
     getSalaries,
+    createSalary,
     deleteSalary
 } = require('../controllers/managementController');
 
-// Subscriptions
-router.post('/subscriptions', addSubscription);
+/* Subscriptions */
 router.get('/subscriptions', getSubscriptions);
+router.post('/subscriptions', createSubscription);
 router.delete('/subscriptions/:id', deleteSubscription);
 
-// Salaries
-router.post('/salaries', addSalary);
+/* Salaries */
 router.get('/salaries', getSalaries);
+router.post('/salaries', createSalary);
 router.delete('/salaries/:id', deleteSalary);
 
 module.exports = router;

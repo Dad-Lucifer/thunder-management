@@ -110,7 +110,7 @@ const coinsUsed = coinsApplied ? (coinDiscount / 20) * 50 : 0;
     const fetchAvailability = async () => {
         try {
             const res = await axios.get<{ limits: Record<DeviceKeys, number>; occupied: { [key in DeviceKeys]: number[] } }>(
-                'http://localhost:5173/api/sessions/availability'
+                'https://thunder-management.onrender.com/api/sessions/availability'
             );
             setAvailability(res.data);
         } catch (e) {
@@ -196,8 +196,8 @@ setCoinDiscount(0);
     const isFunNight = !isHappyHour && isFunNightTime();
     const isNormalHour = !isHappyHour && !isFunNight && isNormalHourTime();
 
-const redeemableBlocks = Math.floor(thunderCoins / 50);
-const maxDiscount = redeemableBlocks * 20;
+// const redeemableBlocks = Math.floor(thunderCoins / 50);
+// const maxDiscount = redeemableBlocks * 20;
 
     /* ----------------------------------- */
 
@@ -208,7 +208,7 @@ const maxDiscount = redeemableBlocks * 20;
                 return;
             }
 
-            await axios.post('http://localhost:5173/api/sessions/start', {
+            await axios.post('https://thunder-management.onrender.com/api/sessions/start', {
                 ...form,
                 snackDetails: snackItems,
                 duration: durationInHours,

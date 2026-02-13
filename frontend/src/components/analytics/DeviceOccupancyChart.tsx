@@ -64,7 +64,7 @@ const DeviceOccupancyChart: React.FC = () => {
     useEffect(() => {
         const fetchOccupancy = async () => {
             try {
-                const res = await axios.get('https://thunder-management.onrender.com/api/analytics/deviceoccupancy');
+                const res = await axios.get('http://localhost:5173/api/analytics/deviceoccupancy');
                 setData([
                     { name: 'Occupied', value: res.data.occupied },
                     { name: 'Remaining', value: res.data.remaining }

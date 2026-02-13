@@ -1,6 +1,6 @@
 const { db } = require('../config/firebase');
 const deviceLimits = require("../config/deviceLimit");
-const { calculateSessionPrice } = require('../utils/pricing');
+const { calculateSessionPrice, isHappyHourTime, isFunNightTime, isNormalHourTime } = require('../utils/pricing');
 const snackService = require('../services/snackService'); // Import SnackService
 
 // Helper to transform device counts object to array of objects for frontend
@@ -366,6 +366,51 @@ const getUpcomingBookings = async (req, res) => {
     }
 };
 
+const exportSessions = async (req, res) => {
+    try {
+        if (!db) return res.status(500).json({ message: 'Database not initialized' });
+
+        // Fetch last 2000 sessions (active & completed)
+        const snapshot = await db.collection('sessions')
+            .orderBy('createdAt', 'desc')
+            .limit(2000)
+            .get();
+
+        const data = snapshot.docs.map(doc => {
+            const s = doc.data();
+            const startStr = s.startTime;
+            const startTime = startStr ? (s.startTime.toDate ? s.startTime.toDate() : new Date(startStr)) : null;
+
+            // Determine Time Category
+            let timeCategory = 'Unknown';
+            if (startTime) {
+                if (isFunNightTime(startTime)) timeCategory = 'Fun Night';
+                else if (isNormalHourTime(startTime)) timeCategory = 'Normal Hour';
+                else if (isHappyHourTime(startTime)) timeCategory = 'Happy Hour';
+                else timeCategory = 'Happy Hour'; // Default fallback based on business logic
+            }
+
+            // Session Renewed logic
+            const isRenewed = (s.members && s.members.length > 0) || (s.updatedAt && s.updatedAt !== s.createdAt);
+
+            return {
+                Name: s.customerName || 'N/A',
+                Number: s.contactNumber || 'N/A',
+                "Session Renewed": isRenewed ? "Yes" : "No",
+                "Joined During": timeCategory,
+                "Actual Time": startTime ? startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A',
+                "Session Started With Upcoming Booking": s.convertedFromBooking ? "Yes" : "No"
+            };
+        });
+
+        res.status(200).json(data);
+
+    } catch (error) {
+        console.error('❌ Export sessions error:', error);
+        res.status(500).json({ message: 'Failed to export sessions' });
+    }
+};
+
 // Get device availability for a specific time range
 const getDeviceAvailabilityForTime = async (req, res) => {
     try {
@@ -702,5 +747,6 @@ module.exports = {
     deleteSession,
     deleteBooking,
     convertBookingsToSessions,
-    autoConvertBookings
+    autoConvertBookings,
+    exportSessions
 };

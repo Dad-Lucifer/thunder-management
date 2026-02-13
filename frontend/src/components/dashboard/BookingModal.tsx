@@ -84,7 +84,7 @@ const BookingModal = ({ onClose, onSuccess }: Props) => {
       const endDateTime = new Date(`${form.bookingDate}T${form.bookingEndTime}`);
 
       const res = await axios.get(
-        'https://thunder-management.onrender.com/api/sessions/availability-for-time',
+        'http://localhost:5173/api/sessions/availability-for-time',
         {
           params: {
             startTime: startDateTime.toISOString(),
@@ -180,7 +180,7 @@ const BookingModal = ({ onClose, onSuccess }: Props) => {
       const bookingDateTime = new Date(`${form.bookingDate}T${form.bookingTime}`);
       const endDateTime = new Date(`${form.bookingDate}T${form.bookingEndTime}`);
 
-      await axios.post('https://thunder-management.onrender.com/api/sessions/booking', {
+      await axios.post('http://localhost:5173/api/sessions/booking', {
         customerName: form.customerName,
         contactNumber: form.contactNumber,
         peopleCount: form.peopleCount,

@@ -1,6 +1,13 @@
 const { db } = require('../config/firebase');
 const admin = require('firebase-admin');
 
+// Backend Validation Helper
+const validatePlayer = (player) => {
+    if (!player || !player.name || !player.phone) return "Missing player details";
+    if (player.name.trim().length < 2) return "Name too short";
+    if (!/^\d{10}$/.test(player.phone)) return "Invalid phone number (must be 10 digits)";
+    return null;
+};
 
 // Start a new Battle
 exports.startBattle = async (req, res) => {
@@ -10,31 +17,64 @@ exports.startBattle = async (req, res) => {
             return res.status(500).json({ message: 'Database not configured' });
         }
 
-        const { crownHolder, challenger } = req.body;
+        const { crownHolder, challenger, config } = req.body;
 
+        // 1. Validation
         if (!crownHolder || !challenger) {
             return res.status(400).json({ message: 'Both players are required' });
         }
 
+        const p1Error = validatePlayer(crownHolder);
+        if (p1Error) return res.status(400).json({ message: `Player 1: ${p1Error}` });
+
+        const p2Error = validatePlayer(challenger);
+        if (p2Error) return res.status(400).json({ message: `Player 2: ${p2Error}` });
+
+        // 2. Sanitization
+        const sanitize = (str) => str ? String(str).trim() : '';
+        const p1 = {
+            name: sanitize(crownHolder.name),
+            phone: sanitize(crownHolder.phone),
+            teamName: sanitize(crownHolder.teamName),
+            score: 0
+        };
+        const p2 = {
+            name: sanitize(challenger.name),
+            phone: sanitize(challenger.phone),
+            teamName: sanitize(challenger.teamName),
+            score: 0
+        };
+
+        const battleConfig = {
+            gameType: config?.gameType || 'Standard',
+            matchType: config?.matchType || 'Solo',
+            entryFee: Number(config?.entryFee) || 0
+        };
+
+        // 3. Create Record
         const battleData = {
-            crownHolder: { ...crownHolder, score: 0 },
-            challenger: { ...challenger, score: 0 },
+            crownHolder: p1,
+            challenger: p2,
+            config: battleConfig,
             startTime: new Date().toISOString(),
             status: 'active',
             createdAt: new Date().toISOString()
         };
 
         const docRef = await db.collection('battles').add(battleData);
-         const response = {
+
+        const response = {
             id: docRef.id,
             ...battleData
         };
 
         // 🔔 Socket event
-        global.io.emit('battle:started', response);
+        if (global.io) {
+            global.io.emit('battle:started', response);
+        }
 
         console.log('✅ Battle created:', docRef.id);
-        res.status(201).json({ id: docRef.id, ...battleData });
+        res.status(201).json(response);
 
     } catch (error) {
         console.error('❌ Error starting battle:', error);
@@ -45,10 +85,7 @@ exports.startBattle = async (req, res) => {
 // Get Active Battles
 exports.getActiveBattles = async (req, res) => {
     try {
-        if (!db) {
-            console.error('❌ Firestore not initialized');
-            return res.status(500).json({ message: 'Database not configured' });
-        }
+        if (!db) return res.status(500).json({ message: 'Database not configured' });
 
         const snapshot = await db.collection('battles')
             .where('status', '==', 'active')
@@ -59,14 +96,12 @@ exports.getActiveBattles = async (req, res) => {
             ...doc.data()
         }));
 
-        // Sort in memory instead of in Firestore to avoid index requirement
         battles.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-        console.log(`📊 Fetched ${battles.length} active battles`);
         res.status(200).json(battles);
     } catch (error) {
         console.error('❌ Error fetching battles:', error);
-        res.status(500).json({ message: 'Internal Server Error', error: error.message });
+        res.status(500).json({ message: 'Internal Server Error' });
     }
 };
 
@@ -74,7 +109,7 @@ exports.getActiveBattles = async (req, res) => {
 exports.updateScore = async (req, res) => {
     try {
         const { id } = req.params;
-        const { player } = req.body; // 'crownHolder' or 'challenger'
+        const { player } = req.body;
 
         if (!['crownHolder', 'challenger'].includes(player)) {
             return res.status(400).json({ message: 'Invalid player type' });
@@ -83,28 +118,21 @@ exports.updateScore = async (req, res) => {
         const battleRef = db.collection('battles').doc(id);
         const doc = await battleRef.get();
 
-        if (!doc.exists) {
-            return res.status(404).json({ message: 'Battle not found' });
-        }
+        if (!doc.exists) return res.status(404).json({ message: 'Battle not found' });
 
-        const battle = doc.data();
-        const currentScore = battle[player].score || 0;
-
-        // atomic increment not strictly necessary for this scale, but good practice. 
-        // using simple update for now to avoid field path complexities if structured data is weird.
-        // Actually, let's just read-modify-write for simplicity in this prototyping phase.
-
+        // Atomic Increment
         await battleRef.update({
-            [`${player}.score`]: currentScore + 1
+            [`${player}.score`]: admin.firestore.FieldValue.increment(1)
         });
 
-      global.io.emit('battle:scoreUpdated', {
-            battleId: id,
-            player
-        });    
-        
-        res.status(200).json({ message: 'Score updated' });
+        if (global.io) {
+            global.io.emit('battle:scoreUpdated', {
+                battleId: id,
+                player
+            });
+        }
 
+        res.status(200).json({ message: 'Score updated' });
     } catch (error) {
         console.error('Error updating score:', error);
         res.status(500).json({ message: 'Internal Server Error' });
@@ -112,136 +140,90 @@ exports.updateScore = async (req, res) => {
 };
 
 // Finish Battle
-
 exports.finishBattle = async (req, res) => {
     try {
         const { id } = req.params;
-
         const battleRef = db.collection('battles').doc(id);
-        const snap = await battleRef.get();
 
-        if (!snap.exists) {
-            return res.status(404).json({ message: 'Battle not found' });
-        }
+        // Transaction to ensure data consistency
+        await db.runTransaction(async (t) => {
+            const doc = await t.get(battleRef);
+            if (!doc.exists) throw new Error('Battle not found');
 
-        const battle = snap.data();
+            const battle = doc.data();
+            if (battle.status !== 'active') throw new Error('Battle already finished');
 
-        if (battle.status !== 'active') {
-            return res.status(400).json({ message: 'Battle already finished' });
-        }
+            const crownScore = battle.crownHolder.score;
+            const chalScore = battle.challenger.score;
 
-        const crownScore = battle.crownHolder.score;
-        const chalScore = battle.challenger.score;
+            let winnerKey = null;
+            if (crownScore > chalScore) winnerKey = 'crownHolder';
+            else if (chalScore > crownScore) winnerKey = 'challenger';
 
-        let winnerKey = null; // 'crownHolder' | 'challenger'
+            // Update Battle
+            t.update(battleRef, {
+                status: 'completed',
+                endTime: new Date().toISOString(), // Use ISO string for consistency with standard JSON
+                winner: winnerKey ? battle[winnerKey].name : 'tie'
+            });
 
-        if (crownScore > chalScore) {
-            winnerKey = 'crownHolder';
-        } else if (chalScore > crownScore) {
-            winnerKey = 'challenger';
-        }
+            // Award Winner
+            if (winnerKey) {
+                const winner = battle[winnerKey];
+                const winnerRef = db.collection('battelwinner').doc(winner.phone);
 
-        const batch = db.batch();
-
-        // 1️⃣ Finish the battle
-        batch.update(battleRef, {
-            status: 'completed',
-            endTime: admin.firestore.FieldValue.serverTimestamp(),
-            winner: winnerKey ? battle[winnerKey].name : 'tie'
-        });
-
-        // 2️⃣ Store reward in battelwinner collection
-        if (winnerKey) {
-            const winner = battle[winnerKey];
-
-            const winnerRef = db
-                .collection('battelwinner')
-                .doc(winner.phone); // phone as document ID
-
-            batch.set(
-                winnerRef,
-                {
+                t.set(winnerRef, {
                     name: winner.name,
                     phone: winner.phone,
                     thunderCoins: admin.firestore.FieldValue.increment(15),
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp()
-                },
-                { merge: true } // 👈 critical (increment works safely)
-            );
+                    updatedAt: new Date().toISOString()
+                }, { merge: true });
+            }
+        });
+
+        if (global.io) {
+            global.io.emit('battle:finished', { battleId: id });
         }
 
-        await batch.commit();
-
-        global.io.emit('battle:finished', { battleId: id });
-
-        res.status(200).json({
-            message: 'Battle finished',
-            winner: winnerKey ? battle[winnerKey].name : 'tie',
-            coinsAwarded: winnerKey ? 15 : 0
-        });
+        res.status(200).json({ message: 'Battle finished successfully' });
 
     } catch (error) {
         console.error('❌ Error finishing battle:', error);
-        res.status(500).json({
-            message: 'Internal Server Error',
-            error: error.message
-        });
+        const status = error.message === 'Battle not found' ? 404 : 400;
+        res.status(status).json({ message: error.message });
     }
 };
 
-
-// Get Completed Battles (for leaderboard)
+// Get Completed Battles
 exports.getCompletedBattles = async (req, res) => {
     try {
-        if (!db) {
-            console.error('❌ Firestore not initialized');
-            return res.status(500).json({ message: 'Database not configured' });
-        }
+        if (!db) return res.status(500).json({ message: 'Database not configured' });
 
         const snapshot = await db.collection('battles')
             .where('status', '==', 'completed')
+            .orderBy('endTime', 'desc') // Requires index, but much faster
+            .limit(20)
             .get();
 
-        const battles = snapshot.docs.map(doc => {
-            const data = doc.data();
+        const battles = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
 
-            // Determine winner
-            let winner = 'tie';
-            if (data.crownHolder.score > data.challenger.score) {
-                winner = 'crownHolder';
-            } else if (data.challenger.score > data.crownHolder.score) {
-                winner = 'challenger';
-            }
-
-            return {
-                id: doc.id,
-                ...data,
-                winner
-            };
-        });
-
-        // Sort by end time (most recent first)
-        battles.sort((a, b) => new Date(b.endTime) - new Date(a.endTime));
-
-        console.log(`📊 Fetched ${battles.length} completed battles`);
         res.status(200).json(battles);
     } catch (error) {
         console.error('❌ Error fetching completed battles:', error);
-        res.status(500).json({ message: 'Internal Server Error', error: error.message });
+        res.status(500).json({ message: 'Internal Server Error' });
     }
 };
 
-
 exports.getThunderLeaderboard = async (req, res) => {
     try {
-        const snapshot = await db
-            .collection('battelwinner')
+        const snapshot = await db.collection('battelwinner')
             .orderBy('thunderCoins', 'desc')
             .limit(10)
             .get();
-
         const data = snapshot.docs.map(doc => doc.data());
-
         res.status(200).json(data);
     } catch (err) {
         res.status(500).json({ message: 'Failed to fetch leaderboard' });
@@ -251,25 +233,12 @@ exports.getThunderLeaderboard = async (req, res) => {
 exports.getThunderPlayer = async (req, res) => {
     try {
         const { name, phone } = req.query;
+        if (!name || !phone) return res.status(400).json({ message: 'Name and phone are required' });
 
-        if (!name || !phone) {
-            return res.status(400).json({
-                message: 'Name and phone are required'
-            });
-        }
-
-        const doc = await db
-            .collection('battelwinner')
-            .doc(phone)
-            .get();
-
-        if (!doc.exists) {
-            return res.status(404).json({ message: 'Player not found' });
-        }
+        const doc = await db.collection('battelwinner').doc(phone).get();
+        if (!doc.exists) return res.status(404).json({ message: 'Player not found' });
 
         const data = doc.data();
-
-        // 🔐 Exact match validation
         if (data.name.toLowerCase() !== name.toLowerCase()) {
             return res.status(404).json({ message: 'Player not found' });
         }
@@ -279,4 +248,3 @@ exports.getThunderPlayer = async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 };
-

@@ -90,7 +90,7 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
     const fetchAvailability = async () => {
         try {
             const res = await axios.get<{ limits: Record<DeviceKeys, number>; occupied: { [key in DeviceKeys]: number[] } }>(
-                'https://thunder-management.onrender.com/api/sessions/availability'
+                'http://localhost:5173/api/sessions/availability'
             );
             setAvailability(res.data);
         } catch (e) {
@@ -140,7 +140,7 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 return;
             }
 
-            await axios.post('https://thunder-management.onrender.com/api/sessions/start', {
+            await axios.post('http://localhost:5173/api/sessions/start', {
                 ...form,
                 snackDetails: snackItems,
                 duration: durationInHours,

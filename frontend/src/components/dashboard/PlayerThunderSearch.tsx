@@ -41,7 +41,7 @@ const PlayerThunderSearchModal = ({ open, onClose }: Props) => {
 
         try {
             const res = await axios.get(
-                `https://thunder-management.onrender.com/api/battles/thunder-player`,
+                `http://localhost:5173/api/battles/thunder-player`,
                 {
                     params: { name, phone }
                 }

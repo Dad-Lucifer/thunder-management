@@ -11,11 +11,12 @@ import DashboardLayout from '../layouts/DashboardLayout';
 import {
     GlassCard, GradientTitle, TabGroup, ActionButton, QuickStat
 } from '../components/owner/ui/ModernComponents';
-import SubscriptionCard from '../components/owner/SubscriptionCard';
+import SubscriptionOverview from '../components/owner/SubscriptionOverview';
 import RecentTransactions from '../components/owner/RecentTransactions';
 
 import OwnerPieCharts from '../components/owner/OwnerPieCharts';
 import SnackOverview from '../components/owner/SnackOverview'; // Import SnackOverview
+import { useSessionExport } from '../components/owner/ExportSessionsReport';
 
 import './OwnerDashboard.css';
 
@@ -50,7 +51,7 @@ const OwnerDashboard: React.FC = () => {
                 setLoading(true);
 
                 const range = timeFilter.toLowerCase().replace(' ', '');
-                const res = await fetch(`https://thunder-management.onrender.com/api/owner/ownerstat?range=${range}`);
+                const res = await fetch(`/api/owner/ownerstat?range=${range}`);
                 const data = await res.json();
 
                 setKpiStats(data.kpiStats || []);
@@ -69,7 +70,7 @@ const OwnerDashboard: React.FC = () => {
             try {
                 const range = timeFilter.toLowerCase().replace(' ', '');
                 const res = await fetch(
-                    `https://thunder-management.onrender.com/api/owner/revenueflow?range=${range}`
+                    `/api/owner/revenueflow?range=${range}`
                 );
                 const data = await res.json();
 
@@ -87,8 +88,10 @@ const OwnerDashboard: React.FC = () => {
 
     const filterOptions = ['Today', 'Yesterday', 'Last Week', 'This Month'];
 
+    const { exportData, loading: exportLoading } = useSessionExport();
+
     const handleDownload = () => {
-        alert('Downloading Report...');
+        exportData();
     };
 
     // Icon helper
@@ -128,7 +131,7 @@ const OwnerDashboard: React.FC = () => {
                         />
                         <ActionButton
                             icon={FaDownload}
-                            label="Export"
+                            label={exportLoading ? "Exporting..." : "Export"}
                             onClick={handleDownload}
                             variant="primary"
                         />
@@ -229,10 +232,9 @@ const OwnerDashboard: React.FC = () => {
                 <section className="secondary-grid">
                     <div className="pie-charts-area">
                         <RecentTransactions timeFilter={timeFilter} />
-
                     </div>
                     <div className="transactions-area">
-                        <SubscriptionCard />
+                        <SubscriptionOverview />
                     </div>
                 </section>
 

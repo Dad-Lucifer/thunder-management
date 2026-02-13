@@ -1,14 +1,25 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaCrown, FaTimes, FaGamepad } from 'react-icons/fa';
+import {
+    FaCrown, FaTimes, FaGamepad, FaUsers
+} from 'react-icons/fa';
 import { GiCrossedSwords } from 'react-icons/gi';
+import { validateName, validatePhone, formatName, formatPhone } from '../../utils/validation';
 import './PlayersBattle.css';
 
 interface PlayerInfo {
     name: string;
     phone: string;
-    age: string;
+    teamName?: string; // Optional, for team matches
+    errors: {
+        name?: string;
+        phone?: string;
+    }
+}
+
+interface BattleConfig {
+    matchType: 'Solo' | 'Team';
 }
 
 interface Props {
@@ -17,169 +28,306 @@ interface Props {
 }
 
 const PlayersBattleModal = ({ isOpen, onClose }: Props) => {
-    const [crownHolder, setCrownHolder] = useState<PlayerInfo>({ name: '', phone: '', age: '' });
-    const [challenger, setChallenger] = useState<PlayerInfo>({ name: '', phone: '', age: '' });
+    // --- State ---
+    const [crownHolder, setCrownHolder] = useState<PlayerInfo>({ name: '', phone: '', errors: {} });
+    const [challenger, setChallenger] = useState<PlayerInfo>({ name: '', phone: '', errors: {} });
 
-    const handleInputChange = (
-        type: 'crown' | 'challenger',
+    // Config State
+    const [config, setConfig] = useState<BattleConfig>({
+        matchType: 'Solo'
+    });
+
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // --- Handlers ---
+
+    // Generic Input Handler with Validation
+    const handlePlayerChange = (
+        playerBox: 'crown' | 'challenger',
         field: keyof PlayerInfo,
         value: string
     ) => {
-        if (type === 'crown') {
-            setCrownHolder(prev => ({ ...prev, [field]: value }));
-        } else {
-            setChallenger(prev => ({ ...prev, [field]: value }));
+        const setPlayer = playerBox === 'crown' ? setCrownHolder : setChallenger;
+
+        setPlayer(prev => {
+            let newVal = value;
+            const newErrors = { ...prev.errors };
+
+            // 1. Sanitization & formatting 
+            if (field === 'phone') {
+                newVal = formatPhone(value);
+            } else if (field === 'name') {
+                // Allow typing, format strict on blur usually, but we can do some realtime blocks
+                // Block double spaces
+                if (value.includes('  ')) return prev;
+                if (/[^a-zA-Z\s]/.test(value)) return prev; // Regex strict block
+                newVal = value; // allow typing
+            }
+
+            // 2. Clear error on change
+            if (field === 'name' || field === 'phone') {
+                delete newErrors[field as 'name' | 'phone'];
+            }
+
+            return { ...prev, [field]: newVal, errors: newErrors };
+        });
+    };
+
+    // Strict Validation on Blur
+    const handleBlur = (playerBox: 'crown' | 'challenger', field: 'name' | 'phone') => {
+        const player = playerBox === 'crown' ? crownHolder : challenger;
+        const setPlayer = playerBox === 'crown' ? setCrownHolder : setChallenger;
+
+        let error: string | undefined;
+
+        if (field === 'name') {
+            const res = validateName(player.name);
+            if (!res.isValid) error = res.error;
+            else {
+                // Auto-format on blur
+                setPlayer(prev => ({ ...prev, name: formatName(prev.name) }));
+            }
+        } else if (field === 'phone') {
+            const res = validatePhone(player.phone);
+            if (!res.isValid) error = res.error;
         }
+
+        if (error) {
+            setPlayer(prev => ({
+                ...prev,
+                errors: { ...prev.errors, [field]: error }
+            }));
+        }
+    };
+
+    // Config Handlers
+    const handleConfigChange = (field: keyof BattleConfig, value: any) => {
+        setConfig(prev => ({ ...prev, [field]: value }));
+    };
+
+    // Submit Logic
+    const validateAll = () => {
+        const p1Name = validateName(crownHolder.name);
+        const p1Phone = validatePhone(crownHolder.phone);
+        const p2Name = validateName(challenger.name);
+        const p2Phone = validatePhone(challenger.phone);
+
+        setCrownHolder(prev => ({
+            ...prev,
+            errors: { name: p1Name.error, phone: p1Phone.error }
+        }));
+        setChallenger(prev => ({
+            ...prev,
+            errors: { name: p2Name.error, phone: p2Phone.error }
+        }));
+
+        return p1Name.isValid && p1Phone.isValid && p2Name.isValid && p2Phone.isValid;
     };
 
     const handleSubmit = async () => {
-        if (!crownHolder.name || !challenger.name) {
-            alert("Please enter player names!");
-            return;
-        }
+        if (!validateAll()) return;
 
+        setIsSubmitting(true);
         try {
-            await axios.post('https://thunder-management.onrender.com/api/battles/start', {
-                crownHolder,
-                challenger
-            });
+            const payload = {
+                crownHolder: {
+                    name: formatName(crownHolder.name),
+                    phone: crownHolder.phone,
+                    teamName: config.matchType === 'Team' ? crownHolder.teamName : undefined
+                },
+                challenger: {
+                    name: formatName(challenger.name),
+                    phone: challenger.phone,
+                    teamName: config.matchType === 'Team' ? challenger.teamName : undefined
+                },
+                config
+            };
 
-            alert('Battle Started! ⚔️');
+            await axios.post('/api/battles/start', payload);
+
+            // alert('Battle Started! ⚔️'); 
+            // Better UX: No alert, just close and show toast (if available), or simple auto-close
             onClose();
-            // Reset
-            setCrownHolder({ name: '', phone: '', age: '' });
-            setChallenger({ name: '', phone: '', age: '' });
 
-            // Trigger refresh (global event or context would be better, but quick hack: reload window or rely on polling)
-            // Ideally, ActiveBattles should be polling.
-        } catch (error) {
+            // Reset
+            setCrownHolder({ name: '', phone: '', errors: {} });
+            setChallenger({ name: '', phone: '', errors: {} });
+            setConfig({ matchType: 'Solo' });
+
+        } catch (error: any) {
             console.error(error);
-            alert("Failed to start battle");
+            alert(error.response?.data?.message || "Failed to start battle");
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
+    if (!isOpen) return null;
+
     return (
-        <AnimatePresence>
-            {isOpen && (
-                <div className="battle-modal-backdrop">
-                    <motion.div
-                        className="battle-modal-container"
-                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                        transition={{ type: "spring", duration: 0.5 }}
-                    >
-                        <div className="battle-modal-header">
-                            <h2 className="battle-modal-title">
-                                <GiCrossedSwords style={{ marginRight: '10px', verticalAlign: 'middle', color: '#ef4444' }} />
-                                New Battle Registration
-                            </h2>
-                            <button className="close-btn" onClick={onClose}>
-                                <FaTimes />
-                            </button>
+        <AnimatePresence mode="wait">
+            <div className="battle-modal-backdrop" onClick={onClose}>
+                <motion.div
+                    className="battle-modal-container"
+                    onClick={(e) => e.stopPropagation()} // Prevent close on modal click
+                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                >
+                    {/* Header */}
+                    <div className="battle-modal-header">
+                        <div className="header-title-wrapper">
+                            <GiCrossedSwords className="text-red-500 text-xl" />
+                            <h2 className="battle-modal-title">New Battle Registration</h2>
+                        </div>
+                        <button className="close-btn" onClick={onClose}>
+                            <FaTimes size={16} />
+                        </button>
+                    </div>
+
+                    {/* Content */}
+                    <div className="battle-form-content custom-scrollbar">
+
+                        {/* Common Config Section */}
+                        <div className="common-settings">
+                            <div className="battle-input-wrapper">
+                                <label className="input-label">Match Type</label>
+                                <div className="flex gap-2">
+                                    <button
+                                        type="button"
+                                        className={`battle-select text-left flex items-center gap-2 ${config.matchType === 'Solo' ? 'border-purple-500 bg-purple-500/10' : ''}`}
+                                        onClick={() => handleConfigChange('matchType', 'Solo')}
+                                    >
+                                        <FaUsers size={12} /> Solo
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={`battle-select text-left flex items-center gap-2 ${config.matchType === 'Team' ? 'border-purple-500 bg-purple-500/10' : ''}`}
+                                        onClick={() => handleConfigChange('matchType', 'Team')}
+                                    >
+                                        <FaUsers size={12} /> Team
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
-                        <div className="battle-form-content custom-scrollbar">
-                            {/* Crown Holder Section */}
-                            <div className="form-section crown-holder-section">
-                                <h3 className="section-title" style={{ color: '#eab308' }}>
-                                    <FaCrown /> Crown Holder
-                                </h3>
+                        {/* Players Grid */}
+                        <div className="players-grid">
+
+                            {/* Crown Holder */}
+                            <div className="player-card crown">
+                                <div className="card-header">
+                                    <FaCrown /> Crown Holder (Player 1)
+                                </div>
 
                                 <div className="input-group">
-                                    <label className="input-label">Player Name</label>
-                                    <div className="relative">
-                                        <input
-                                            className="battle-input"
-                                            placeholder="Enter Name"
-                                            value={crownHolder.name}
-                                            onChange={(e) => handleInputChange('crown', 'name', e.target.value)}
-                                        />
-                                    </div>
+                                    <label className="input-label">Full Name</label>
+                                    <input
+                                        className={`battle-input ${crownHolder.errors.name ? 'error' : ''}`}
+                                        placeholder="e.g. Rahul Sharma"
+                                        value={crownHolder.name}
+                                        onChange={(e) => handlePlayerChange('crown', 'name', e.target.value)}
+                                        onBlur={() => handleBlur('crown', 'name')}
+                                    />
+                                    {crownHolder.errors.name && <span className="input-error-msg">{crownHolder.errors.name}</span>}
                                 </div>
 
                                 <div className="input-group">
                                     <label className="input-label">Phone Number</label>
-                                    <div className="relative">
+                                    <input
+                                        className={`battle-input ${crownHolder.errors.phone ? 'error' : ''}`}
+                                        placeholder="10-digit number"
+                                        type="tel"
+                                        maxLength={10}
+                                        value={crownHolder.phone}
+                                        onChange={(e) => handlePlayerChange('crown', 'phone', e.target.value)}
+                                        onBlur={() => handleBlur('crown', 'phone')}
+                                    />
+                                    {crownHolder.errors.phone && <span className="input-error-msg">{crownHolder.errors.phone}</span>}
+                                </div>
+
+                                {config.matchType === 'Team' && (
+                                    <div className="input-group">
+                                        <label className="input-label">Team Name</label>
                                         <input
                                             className="battle-input"
-                                            placeholder="Enter Phone"
-                                            type="tel"
-                                            value={crownHolder.phone}
-                                            onChange={(e) => handleInputChange('crown', 'phone', e.target.value)}
+                                            placeholder="Team Alpha"
+                                            value={crownHolder.teamName || ''}
+                                            onChange={(e) => setCrownHolder({ ...crownHolder, teamName: e.target.value })}
                                         />
                                     </div>
-                                </div>
-
-                                <div className="input-group">
-                                    <label className="input-label">Age</label>
-                                    <input
-                                        className="battle-input"
-                                        placeholder="Enter Age"
-                                        type="number"
-                                        value={crownHolder.age}
-                                        onChange={(e) => handleInputChange('crown', 'age', e.target.value)}
-                                    />
-                                </div>
+                                )}
                             </div>
 
-                            {/* VS Badge */}
-                            <div className="vs-badge">
+                            {/* VS Divider */}
+                            <div className="vs-divider">
                                 VS
                             </div>
 
-                            {/* Challenger Section */}
-                            <div className="form-section challenger-section">
-                                <h3 className="section-title" style={{ color: '#3b82f6' }}>
-                                    <FaGamepad /> Challenger
-                                </h3>
+                            {/* Challenger */}
+                            <div className="player-card challenger">
+                                <div className="card-header">
+                                    <FaGamepad /> Challenger (Player 2)
+                                </div>
 
                                 <div className="input-group">
-                                    <label className="input-label">Player Name</label>
+                                    <label className="input-label">Full Name</label>
                                     <input
-                                        className="battle-input"
-                                        placeholder="Enter Name"
+                                        className={`battle-input ${challenger.errors.name ? 'error' : ''}`}
+                                        placeholder="e.g. Vikram Singh"
                                         value={challenger.name}
-                                        onChange={(e) => handleInputChange('challenger', 'name', e.target.value)}
+                                        onChange={(e) => handlePlayerChange('challenger', 'name', e.target.value)}
+                                        onBlur={() => handleBlur('challenger', 'name')}
                                     />
+                                    {challenger.errors.name && <span className="input-error-msg">{challenger.errors.name}</span>}
                                 </div>
 
                                 <div className="input-group">
                                     <label className="input-label">Phone Number</label>
                                     <input
-                                        className="battle-input"
-                                        placeholder="Enter Phone"
+                                        className={`battle-input ${challenger.errors.phone ? 'error' : ''}`}
+                                        placeholder="10-digit number"
                                         type="tel"
+                                        maxLength={10}
                                         value={challenger.phone}
-                                        onChange={(e) => handleInputChange('challenger', 'phone', e.target.value)}
+                                        onChange={(e) => handlePlayerChange('challenger', 'phone', e.target.value)}
+                                        onBlur={() => handleBlur('challenger', 'phone')}
                                     />
+                                    {challenger.errors.phone && <span className="input-error-msg">{challenger.errors.phone}</span>}
                                 </div>
 
-                                <div className="input-group">
-                                    <label className="input-label">Age</label>
-                                    <input
-                                        className="battle-input"
-                                        placeholder="Enter Age"
-                                        type="number"
-                                        value={challenger.age}
-                                        onChange={(e) => handleInputChange('challenger', 'age', e.target.value)}
-                                    />
-                                </div>
+                                {config.matchType === 'Team' && (
+                                    <div className="input-group">
+                                        <label className="input-label">Team Name</label>
+                                        <input
+                                            className="battle-input"
+                                            placeholder="Team Omega"
+                                            value={challenger.teamName || ''}
+                                            onChange={(e) => setChallenger({ ...challenger, teamName: e.target.value })}
+                                        />
+                                    </div>
+                                )}
                             </div>
-                        </div>
 
-                        <div className="battle-actions">
-                            <button className="cancel-btn" onClick={onClose}>
-                                Cancel
-                            </button>
-                            <button className="confirm-battle-btn" onClick={handleSubmit}>
-                                Start Battle
-                            </button>
                         </div>
+                    </div>
 
-                    </motion.div>
-                </div>
-            )}
+                    {/* Actions */}
+                    <div className="battle-actions">
+                        <button className="cancel-btn" onClick={onClose} disabled={isSubmitting}>
+                            Cancel
+                        </button>
+                        <button className="start-btn" onClick={handleSubmit} disabled={isSubmitting}>
+                            {isSubmitting ? (
+                                <>Processing...</>
+                            ) : (
+                                <><GiCrossedSwords /> Start Battle</>
+                            )}
+                        </button>
+                    </div>
+                </motion.div>
+            </div>
         </AnimatePresence>
     );
 };

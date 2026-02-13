@@ -35,6 +35,11 @@ const getStartDate = (range) => {
     case 'thismonth':
       startDate = new Date(now.getFullYear(), now.getMonth(), 1);
       break;
+
+    default:
+      // Default to today if unknown
+      startDate.setHours(0, 0, 0, 0);
+      break;
   }
 
   return startDate;
@@ -50,7 +55,10 @@ const getOwnerDashboardStats = async (req, res) => {
     const { range = 'today' } = req.query;
     const startDate = getStartDate(range);
 
-    const snapshot = await db.collection('sessions').get();
+    // Optimized: Query filter with ISO string (since stored as string)
+    const snapshot = await db.collection('sessions')
+      .where('createdAt', '>=', startDate.toISOString())
+      .get();
 
     let totalRevenue = 0;
     let totalDuration = 0;
@@ -58,6 +66,7 @@ const getOwnerDashboardStats = async (req, res) => {
 
     snapshot.forEach(doc => {
       const s = doc.data();
+      // Double check in case of different stored formats, but query reduces load massively
       const createdAt = toDate(s.createdAt);
       if (!createdAt || createdAt < startDate) return;
 
@@ -97,7 +106,10 @@ const getRevenueFlow = async (req, res) => {
     const startDate = getStartDate(range);
     const groupBy = range === 'today' || range === 'yesterday' ? 'hour' : 'day';
 
-    const snapshot = await db.collection('sessions').get();
+    const snapshot = await db.collection('sessions')
+      .where('createdAt', '>=', startDate.toISOString())
+      .get();
+
     const buckets = {};
 
     snapshot.forEach(doc => {
@@ -138,6 +150,7 @@ const getRecentTransactions = async (req, res) => {
 
     const snapshot = await db
       .collection('sessions')
+      .where('createdAt', '>=', startDate.toISOString())
       .orderBy('createdAt', 'desc')
       .limit(50)
       .get();
@@ -147,7 +160,7 @@ const getRecentTransactions = async (req, res) => {
         const s = doc.data();
         const createdAt = toDate(s.createdAt);
         if (!createdAt || createdAt < startDate) return null;
-if (s.status !== 'completed') return null;
+        if (s.status !== 'completed') return null;
 
         return {
           id: doc.id,
@@ -182,7 +195,9 @@ const getRevenueByMachine = async (req, res) => {
     const { range = 'today' } = req.query;
     const startDate = getStartDate(range);
 
-    const snapshot = await db.collection('sessions').get();
+    const snapshot = await db.collection('sessions')
+      .where('createdAt', '>=', startDate.toISOString())
+      .get();
 
     const totals = {
       ps: 0,
@@ -195,6 +210,7 @@ const getRevenueByMachine = async (req, res) => {
     snapshot.forEach(doc => {
       const s = doc.data();
 
+      // Ensure status is completed (original logic did this inside loop)
       if (s.status !== 'completed') return;
 
       const createdAt = toDate(s.createdAt);

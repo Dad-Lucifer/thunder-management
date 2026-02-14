@@ -63,8 +63,8 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
     const thunderCoins = playerData?.thunderCoins ?? 0;
     const playerFound = !!playerData;
     const [coinsApplied, setCoinsApplied] = useState(false);
-const [coinDiscount, setCoinDiscount] = useState(0);
-const coinsUsed = coinsApplied ? (coinDiscount / 20) * 50 : 0;
+    const [coinDiscount, setCoinDiscount] = useState(0);
+    const coinsUsed = coinsApplied ? (coinDiscount / 20) * 50 : 0;
 
 
 
@@ -153,8 +153,8 @@ const coinsUsed = coinsApplied ? (coinDiscount / 20) * 50 : 0;
                 if (!cancelled) {
                     setPlayerData(res.data); // fetch ONCE
                 }
-setCoinsApplied(false);
-setCoinDiscount(0);
+                setCoinsApplied(false);
+                setCoinDiscount(0);
 
             } catch (error) {
                 if (!cancelled) setPlayerData(null);
@@ -196,8 +196,8 @@ setCoinDiscount(0);
     const isFunNight = !isHappyHour && isFunNightTime();
     const isNormalHour = !isHappyHour && !isFunNight && isNormalHourTime();
 
-// const redeemableBlocks = Math.floor(thunderCoins / 50);
-// const maxDiscount = redeemableBlocks * 20;
+    // const redeemableBlocks = Math.floor(thunderCoins / 50);
+    // const maxDiscount = redeemableBlocks * 20;
 
     /* ----------------------------------- */
 
@@ -213,7 +213,7 @@ setCoinDiscount(0);
                 snackDetails: snackItems,
                 duration: durationInHours,
                 price: totalPrice,
-                 thunderCoinsUsed: coinsUsed 
+                thunderCoinsUsed: coinsUsed
             });
 
             alert('Session started 🚀');
@@ -230,11 +230,11 @@ setCoinDiscount(0);
             setSnackItems([]); // Reset snacks
 
             onClose(); // Close modal on success
-setCoinDiscount(0);
-setCoinsApplied(false);
-setPlayerData(prev =>
-    prev ? { ...prev, thunderCoins: prev.thunderCoins - coinsUsed } : null
-);
+            setCoinDiscount(0);
+            setCoinsApplied(false);
+            setPlayerData(prev =>
+                prev ? { ...prev, thunderCoins: prev.thunderCoins - coinsUsed } : null
+            );
 
 
         } catch (error: any) {
@@ -245,27 +245,27 @@ setPlayerData(prev =>
     };
 
 
-const toggleThunderCoins = () => {
+    const toggleThunderCoins = () => {
 
-    // Cancel if already applied
-    if (coinsApplied) {
-        setCoinsApplied(false);
-        setCoinDiscount(0);
-        return;
-    }
+        // Cancel if already applied
+        if (coinsApplied) {
+            setCoinsApplied(false);
+            setCoinDiscount(0);
+            return;
+        }
 
-    // Apply
-    if (thunderCoins < 50) {
-        alert("Minimum 50 Thunder Coins required ⚡");
-        return;
-    }
+        // Apply
+        if (thunderCoins < 50) {
+            alert("Minimum 50 Thunder Coins required ⚡");
+            return;
+        }
 
-    const redeemableBlocks = Math.floor(thunderCoins / 50);
-    const discount = redeemableBlocks * 20;
+        const redeemableBlocks = Math.floor(thunderCoins / 50);
+        const discount = redeemableBlocks * 20;
 
-    setCoinDiscount(discount);
-    setCoinsApplied(true);
-};
+        setCoinDiscount(discount);
+        setCoinsApplied(true);
+    };
 
 
     /* -----------------------------
@@ -432,42 +432,42 @@ const toggleThunderCoins = () => {
                                         {!form.contactNumber && <span style={{ color: "#64748b" }}>Enter phone number</span>}
                                     </div>
                                 </div>
-                <div style={{ marginTop: 35, display: "flex", flexDirection: "column", gap: 6 }}>
+                                <div style={{ marginTop: 35, display: "flex", flexDirection: "column", gap: 6 }}>
 
-    {/* Apply / Cancel Button */}
-    <button
-        type="button"
-        onClick={toggleThunderCoins}
-        disabled={thunderCoins < 50 && !coinsApplied}
-        style={{
-            width: "100%",
-            height: "40px",
-            fontSize: 13,
-            borderRadius: 6,              // rectangular look
-            border: "1px solid #334155",
-            cursor: thunderCoins >= 50 || coinsApplied ? "pointer" : "not-allowed",
-            background: coinsApplied ? "#ef4444" : (thunderCoins >= 50 ? "#eab308" : "#1e293b"),
-            color: coinsApplied ? "#ffffff" : "#020617",
-            fontWeight: 600,
-            letterSpacing: 0.4,
-            transition: "0.2s"
-        }}
-    >
-        {coinsApplied ? "Cancel Thunder Coins" : "Apply Thunder Coins"}
-    </button>
+                                    {/* Apply / Cancel Button */}
+                                    <button
+                                        type="button"
+                                        onClick={toggleThunderCoins}
+                                        disabled={thunderCoins < 50 && !coinsApplied}
+                                        style={{
+                                            width: "100%",
+                                            height: "40px",
+                                            fontSize: 13,
+                                            borderRadius: 6,              // rectangular look
+                                            border: "1px solid #334155",
+                                            cursor: thunderCoins >= 50 || coinsApplied ? "pointer" : "not-allowed",
+                                            background: coinsApplied ? "#ef4444" : (thunderCoins >= 50 ? "#eab308" : "#1e293b"),
+                                            color: coinsApplied ? "#ffffff" : "#020617",
+                                            fontWeight: 600,
+                                            letterSpacing: 0.4,
+                                            transition: "0.2s"
+                                        }}
+                                    >
+                                        {coinsApplied ? "Cancel Thunder Coins" : "Apply Thunder Coins"}
+                                    </button>
 
-    {/* Discount message below */}
-    {coinsApplied && (
-        <div style={{
-            fontSize: 12,
-            color: "#22c55e",
-            fontWeight: 500
-        }}>
-            ⚡ ₹{coinDiscount} discount applied
-        </div>
-    )}
+                                    {/* Discount message below */}
+                                    {coinsApplied && (
+                                        <div style={{
+                                            fontSize: 12,
+                                            color: "#22c55e",
+                                            fontWeight: 500
+                                        }}>
+                                            ⚡ ₹{coinDiscount} discount applied
+                                        </div>
+                                    )}
 
-</div>
+                                </div>
 
 
                                 <div className="field-group" style={{ gridColumn: '1 / -1' }}>
@@ -539,37 +539,37 @@ const toggleThunderCoins = () => {
                         {/* Footer - Moved outside scroller for stickiness */}
                         <div className="action-bar" style={{ borderRadius: '0 0 24px 24px' }}>
                             {Object.values(form.devices).some(val => val.length > 0) && (
-        <div className="price-display" style={{ textAlign: "right" }}>
+                                <div className="price-display" style={{ textAlign: "right" }}>
 
-            <span className="price-label">Estimated Total</span>
+                                    <span className="price-label">Estimated Total</span>
 
-            {/* Original price */}
-            {coinDiscount > 0 && (
-                <div style={{ fontSize: 12, color: "#94a3b8" }}>
-                    Original: ₹{Math.round(basePrice + snackCost)}
-                </div>
-            )}
+                                    {/* Original price */}
+                                    {coinDiscount > 0 && (
+                                        <div style={{ fontSize: 12, color: "#94a3b8" }}>
+                                            Original: ₹{Math.round(basePrice + snackCost)}
+                                        </div>
+                                    )}
 
-            {/* Thunder coin discount */}
-            {coinDiscount > 0 && (
-                <div style={{ fontSize: 12, color: "#22c55e", fontWeight: 600 }}>
-                    ⚡ Thunder Coins Discount: -₹{coinDiscount}
-                </div>
-            )}
+                                    {/* Thunder coin discount */}
+                                    {coinDiscount > 0 && (
+                                        <div style={{ fontSize: 12, color: "#22c55e", fontWeight: 600 }}>
+                                            ⚡ Thunder Coins Discount: -₹{coinDiscount}
+                                        </div>
+                                    )}
 
-            {/* Final price */}
-            <span
-                className="price-val"
-                style={{
-                    color: coinDiscount > 0 ? "#22c55e" : undefined,
-                    fontSize: coinDiscount > 0 ? "1.4rem" : undefined
-                }}
-            >
-                ₹{Math.round(totalPrice)}
-            </span>
+                                    {/* Final price */}
+                                    <span
+                                        className="price-val"
+                                        style={{
+                                            color: coinDiscount > 0 ? "#22c55e" : undefined,
+                                            fontSize: coinDiscount > 0 ? "1.4rem" : undefined
+                                        }}
+                                    >
+                                        ₹{Math.round(totalPrice)}
+                                    </span>
 
-        </div>
-    )}
+                                </div>
+                            )}
 
                             <button
                                 className="start-session-btn"

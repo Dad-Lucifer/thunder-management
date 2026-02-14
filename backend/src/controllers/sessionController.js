@@ -69,7 +69,7 @@ const createSession = async (req, res) => {
     try {
         const {
             customerName, contactNumber, duration,
-            peopleCount, snacks, devices, price, snackDetails,  thunderCoinsUsed = 0 
+            peopleCount, snacks, devices, price, snackDetails, thunderCoinsUsed = 0
         } = req.body;
 
         // Deduct snacks if provided
@@ -150,6 +150,9 @@ const createSession = async (req, res) => {
             snacks: snacks || '',
             devices: devicesVal, // Store as is (arrays)
             price: finalPrice,
+            paidAmount: 0,
+            remainingPeople: peopleVal,  // Initially all people are remaining
+            remainingAmount: finalPrice,  // Initially full amount is remaining
             status: 'active',
             startTime: new Date().toISOString(),
             createdAt: new Date().toISOString()
@@ -158,28 +161,28 @@ const createSession = async (req, res) => {
 
         const docRef = await db.collection('sessions').add(newSession);
         // ================= THUNDER COIN DEDUCTION =================
-if (thunderCoinsUsed > 0 && contactNumber) {
-    try {
-        const playerRef = db.collection('battelwinner').doc(contactNumber);
-        const playerSnap = await playerRef.get();
+        if (thunderCoinsUsed > 0 && contactNumber) {
+            try {
+                const playerRef = db.collection('battelwinner').doc(contactNumber);
+                const playerSnap = await playerRef.get();
 
-        if (playerSnap.exists) {
-            const currentCoins = playerSnap.data().thunderCoins || 0;
+                if (playerSnap.exists) {
+                    const currentCoins = playerSnap.data().thunderCoins || 0;
 
-            // prevent cheating (frontend manipulation safety)
-            const safeDeduction = Math.min(currentCoins, thunderCoinsUsed);
+                    // prevent cheating (frontend manipulation safety)
+                    const safeDeduction = Math.min(currentCoins, thunderCoinsUsed);
 
-            await playerRef.update({
-                thunderCoins: currentCoins - safeDeduction,
-                updatedAt: new Date().toISOString()
-            });
+                    await playerRef.update({
+                        thunderCoins: currentCoins - safeDeduction,
+                        updatedAt: new Date().toISOString()
+                    });
 
-            console.log(`⚡ Deducted ${safeDeduction} coins from ${contactNumber}`);
+                    console.log(`⚡ Deducted ${safeDeduction} coins from ${contactNumber}`);
+                }
+            } catch (coinErr) {
+                console.error("Thunder coin deduction failed:", coinErr);
+            }
         }
-    } catch (coinErr) {
-        console.error("Thunder coin deduction failed:", coinErr);
-    }
-}
 
 
         global.io.emit('session:started', {
@@ -231,6 +234,7 @@ const getActiveSessions = async (req, res) => {
                 peopleCount: data.peopleCount,
                 price: data.price,
                 paidAmount: data.paidAmount || 0,
+                remainingPeople: data.remainingPeople ?? data.peopleCount,
                 remainingAmount: data.remainingAmount ?? data.price,
                 devices: transformDevicesToArray(data.devices), // Now returns objects
                 status: data.status
@@ -521,16 +525,16 @@ const updateSession = async (req, res) => {
 
         const data = snap.data();
 
-        // ---- Option A ledger logic ----
+        // ---- Fixed split logic: Track actual amounts, not recalculate ----
         const totalPrice = data.price + (extraPrice || 0);
 
+        // Track actual amounts paid
         const alreadyPaidAmount = data.paidAmount || 0;
-        const alreadyPaidPeople = data.paidPeople || 0;
+        const currentPayment = paidNow || 0;
+        const newTotalPaid = alreadyPaidAmount + currentPayment;
 
-        const paid = alreadyPaidAmount + (paidNow || 0);
-        const newPaidPeople = alreadyPaidPeople + (payingPeopleNow || 0);
-
-        const remainingAmount = totalPrice - paid;
+        // Remaining amount is simply: Total - What's been paid
+        const remainingAmount = Math.max(0, totalPrice - newTotalPaid);
 
 
         // ---- Safe device merge ----
@@ -556,13 +560,23 @@ const updateSession = async (req, res) => {
             addedPeople = newMember.peopleCount || 0;
         }
 
+        // Calculate remaining people correctly
+        const newPeopleCount = data.peopleCount + addedPeople;
+
+        // Get current remaining people (or fallback to current people count)
+        const currentRemainingPeople = data.remainingPeople ?? data.peopleCount;
+
+        // Subtract people who just paid, add new members
+        const peopleWhoPaid = payingPeopleNow || 0;
+        const finalRemainingPeople = Math.max(0, currentRemainingPeople - peopleWhoPaid + addedPeople);
+
         // ---- Final update ----
         await ref.update({
             duration: data.duration + (extraTime || 0),
-            peopleCount: data.peopleCount + addedPeople,
+            peopleCount: newPeopleCount,
             price: totalPrice,
-            paidAmount: paid,
-            paidPeople: newPaidPeople,
+            paidAmount: newTotalPaid,
+            remainingPeople: finalRemainingPeople,  // Correctly calculated
             remainingAmount,
             devices: updatedDevices,
             members: newMember
@@ -693,6 +707,7 @@ const convertBookingsToSessions = async (req, res) => {
                     devices: booking.devices || {},
                     price: calculatedPrice,
                     paidAmount: 0,
+                    remainingPeople: finalPeopleCount,  // Initially all people are remaining
                     remainingAmount: calculatedPrice,
                     status: 'active',
                     startTime: now.toISOString(),

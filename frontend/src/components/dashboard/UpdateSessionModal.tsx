@@ -39,7 +39,7 @@ interface ActiveSession {
     peopleCount: number;
     price: number;
     paidAmount?: number;
-    paidPeople?: number;
+    remainingPeople?: number;  // Changed from paidPeople
     remainingAmount?: number;
     devices: { type: string; id: number | null }[]; // Updated structure
 }
@@ -51,6 +51,37 @@ interface Props {
 
 // ------------------- Constants -------------------
 // const PRICE_PER_HOUR_PER_PERSON = 50; // Removed unused
+
+const TabButton = ({
+    // id,
+    label,
+    icon: Icon,
+    isActive,
+    onClick
+}: {
+    id: string,
+    label: string,
+    icon: any,
+    isActive: boolean,
+    onClick: () => void
+}) => (
+    <button
+        className={`segment-btn ${isActive ? 'active' : ''}`}
+        onClick={onClick}
+    >
+        {isActive && (
+            <motion.div
+                layoutId="segment-indicator"
+                className="absolute inset-0 bg-white/10 rounded-lg shadow-sm"
+                initial={false}
+                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+            />
+        )}
+        <span className="relative z-10 flex items-center gap-2">
+            <Icon /> {label}
+        </span>
+    </button>
+);
 
 const UpdateSessionModal = ({ session, onClose }: Props) => {
     // ------------------- State -------------------
@@ -135,25 +166,68 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
     const totalPeople = (session.peopleCount || 1) + (newMember.peopleCount || 0);
     const newDuration = (session.duration || 0) + (extraMinutes / 60);
 
-    // We calculate "Expected Total Price" for the *Target State*
-    const expectedTotalPrice = calculateSessionPrice(
+    // Robustness: If remainingPeople is missing OR equals totalPeople despite payment, infer it
+    let currentRemainingPeople = session.remainingPeople ?? totalPeople;
+
+    // If DB says everyone is remaining, but we have paid amount, recalculate based on shares
+    if ((session.remainingPeople === undefined || session.remainingPeople === totalPeople) && (session.paidAmount || 0) > 0) {
+        // Estimate how many "full person shares" have been paid
+        const baseShare = session.price / totalPeople;
+        const peoplePaid = Math.floor((session.paidAmount || 0) / baseShare);
+        currentRemainingPeople = Math.max(0, totalPeople - peoplePaid);
+    }
+
+    // CRITICAL FIX: Calculate charges for REMAINING PEOPLE only
+    // People who already paid and left won't use the extra time!
+
+    // Calculate the cost of EXTRA time for REMAINING people
+    // CRITICAL: Use Delta Pricing to avoid re-triggering "First Hour" base costs
+    const priceWithTotalTime = calculateSessionPrice(
         newDuration,
-        totalPeople,
-        mergedDevices, // Now passing correct structure
+        currentRemainingPeople,
+        mergedDevices,
         new Date()
     );
 
-    // The delta is what we charge
-    // `charges = ExpectedTotal - session.price`.
+    const priceWithOriginalTime = calculateSessionPrice(
+        session.duration || 0,
+        currentRemainingPeople,
+        mergedDevices,
+        new Date()
+    );
 
-    const chargesAsString = Math.max(0, expectedTotalPrice - session.price) + newSnackCost;
+    const extraTimeCost = Math.max(0, priceWithTotalTime - priceWithOriginalTime);
 
-    const finalBill = (session.remainingAmount ?? session.price) + chargesAsString;
-    const totalToPay = expectedTotalPrice + newSnackCost;
+    // Total new charges = extra time for remaining people + snacks
+    const chargesAsString = extraTimeCost + newSnackCost;
 
-    const newRemainingPeople = totalPeople - ((session.paidPeople || 0) + payingNow);
-    const payNowAmount = payingNow * (expectedTotalPrice / totalPeople); // Approx per person share
+    // CRITICAL: finalBill should be the TOTAL bill (session.price + new charges)
+    // const finalBill = session.price + chargesAsString;
+    const totalToPay = session.price + chargesAsString;
 
+    // Track actual amounts paid, not just people count
+    const currentRemainingAmount = session.remainingAmount ?? session.price;
+    const alreadyPaidAmount = session.paidAmount || 0;
+
+    // Calculate new remaining people (subtract those paying, add new members)
+    const newRemainingPeople = Math.max(0, currentRemainingPeople - payingNow + (newMember.peopleCount || 0));
+
+    // CRITICAL FIX: Simplify share calculation
+    // Instead of complex reconstruction, simply divide TOTAL PENDING by REMAINING PEOPLE.
+    // This correctly handles saved sessions and partial payments.
+    const totalPendingToPay = (session.remainingAmount ?? session.price) + chargesAsString;
+
+    // Avoid division by zero
+    const shareDivisor = currentRemainingPeople > 0 ? currentRemainingPeople : 1;
+
+    // Each remaining person simply pays their share of the debt
+    const perPersonShare = totalPendingToPay / shareDivisor;
+
+    // Amount this payment will cover
+    const payNowAmount = payingNow * perPersonShare;
+
+    // Remaining amount is simply pending minus what is being paid now
+    const newRemainingAmount = Math.max(0, totalPendingToPay - payNowAmount);
 
     // ------------------- Handlers -------------------
 
@@ -181,12 +255,12 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
         try {
             // Re-calculate payload values
             const extraHours = extraMinutes / 60;
-            const charges = expectedTotalPrice - session.price; // Pure delta
+            const charges = extraTimeCost; // Extra time cost for remaining people only
             const memberCount = newMember.peopleCount;
 
             const payload = {
                 extraTime: extraHours,
-                extraPrice: charges + newSnackCost, // We send the Delta + Snacks
+                extraPrice: charges + newSnackCost, // Extra time cost + snacks
                 newMember: memberCount > 0 ? newMember : null,
                 snacks: newSnackItems,
                 paidNow: payNowAmount,
@@ -205,26 +279,7 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
         }
     };
 
-    // ------------------- Components -------------------
 
-    const TabButton = ({ id, label, icon: Icon }: { id: typeof activeTab, label: string, icon: any }) => (
-        <button
-            className={`segment-btn ${activeTab === id ? 'active' : ''}`}
-            onClick={() => setActiveTab(id)}
-        >
-            {activeTab === id && (
-                <motion.div
-                    layoutId="segment-indicator"
-                    className="absolute inset-0 bg-white/10 rounded-lg shadow-sm"
-                    initial={false}
-                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                />
-            )}
-            <span className="relative z-10 flex items-center gap-2">
-                <Icon /> {label}
-            </span>
-        </button>
-    );
 
     return (
         <div className="modal-backdrop">
@@ -244,10 +299,34 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
 
                 {/* Tabs */}
                 <div className="segmented-control">
-                    <TabButton id="extend" label="Time" icon={FaClock} />
-                    <TabButton id="addMember" label="People" icon={FaUserPlus} />
-                    <TabButton id="snacks" label="Snacks" icon={FaPizzaSlice} />
-                    <TabButton id="split" label="Split" icon={FaUserPlus} />
+                    <TabButton
+                        id="extend"
+                        label="Time"
+                        icon={FaClock}
+                        isActive={activeTab === 'extend'}
+                        onClick={() => setActiveTab('extend')}
+                    />
+                    <TabButton
+                        id="addMember"
+                        label="People"
+                        icon={FaUserPlus}
+                        isActive={activeTab === 'addMember'}
+                        onClick={() => setActiveTab('addMember')}
+                    />
+                    <TabButton
+                        id="snacks"
+                        label="Snacks"
+                        icon={FaPizzaSlice}
+                        isActive={activeTab === 'snacks'}
+                        onClick={() => setActiveTab('snacks')}
+                    />
+                    <TabButton
+                        id="split"
+                        label="Split"
+                        icon={FaUserPlus}
+                        isActive={activeTab === 'split'}
+                        onClick={() => setActiveTab('split')}
+                    />
 
                 </div>
 
@@ -372,16 +451,32 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
                                     </div>
 
                                     <div className="invoice-row">
-                                        <span className="invoice-label">Current Pending</span>
-                                        <span className="invoice-val">₹{finalBill.toFixed(0)}</span>
+                                        <span className="invoice-label">Total People</span>
+                                        <span className="invoice-val">{totalPeople}</span>
                                     </div>
 
                                     <div className="invoice-row">
-                                        <span className="invoice-label">People Remaining</span>
-                                        <span className="invoice-val">{newRemainingPeople}</span>
+                                        <span className="invoice-label">Per Person Share</span>
+                                        <span className="invoice-val">₹{perPersonShare.toFixed(0)}</span>
                                     </div>
 
-                                    <div className="invoice-row" style={{ marginTop: '0.5rem' }}>
+                                    <div className="invoice-row" style={{ borderTop: '1px dashed var(--border-subtle)', paddingTop: '0.75rem', marginTop: '0.25rem' }}>
+                                        <span className="invoice-label">Already Paid</span>
+                                        <span className="invoice-val" style={{ color: '#4ade80' }}>₹{alreadyPaidAmount.toFixed(0)}</span>
+                                    </div>
+
+                                    <div className="invoice-row">
+                                        <span className="invoice-label">Current Pending</span>
+                                        <span className="invoice-val">₹{currentRemainingAmount.toFixed(0)}
+                                        </span>
+                                    </div>
+
+                                    {/* <div className="invoice-row">
+                                        <span className="invoice-label">People Remaining</span>
+                                        <span className="invoice-val">{newRemainingPeople}</span>
+                                    </div> */}
+
+                                    <div className="invoice-row" style={{ marginTop: '0.5rem', borderTop: '1px dashed var(--border-subtle)', paddingTop: '0.75rem' }}>
                                         <span className="invoice-label">People Paying Now</span>
                                         <input
                                             type="number"
@@ -402,8 +497,9 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
 
                                     <div className="invoice-row" style={{ borderTop: '1px dashed var(--border-subtle)', paddingTop: '0.75rem', marginTop: '0.25rem' }}>
                                         <span className="invoice-label">New Pending Balance</span>
-                                        <span className="invoice-val">
-                                            ₹{(finalBill - payNowAmount).toFixed(0)}
+                                        <span className="invoice-val" style={{ fontWeight: 'bold', color: newRemainingAmount === 0 ? '#4ade80' : 'inherit' }}>
+                                            ₹{newRemainingAmount.toFixed(0)}
+
                                         </span>
                                     </div>
                                 </div>
@@ -431,7 +527,7 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
                             animate={{ scale: 1, color: '#f4f4f5' }}
                             className="total-value-lg"
                         >
-                            ₹{(finalBill - payNowAmount).toFixed(0)}
+                            ₹{newRemainingAmount.toFixed(0)}
                         </motion.span>
                     </div>
                     <button className="pay-btn" onClick={handleConfirm}>

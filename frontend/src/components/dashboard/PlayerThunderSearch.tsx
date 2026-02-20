@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import {
@@ -30,6 +30,7 @@ interface SearchCustomer {
 
 
 const PlayerThunderSearchModal = ({ open, onClose }: Props) => {
+    const isSelecting = React.useRef(false);
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
     const [result, setResult] = useState<PlayerResult | null>(null);
@@ -104,6 +105,11 @@ const PlayerThunderSearchModal = ({ open, onClose }: Props) => {
             return;
         }
 
+        if (isSelecting.current) {
+            isSelecting.current = false;
+            return;
+        }
+
         let cancel = false;
 
         const timer = setTimeout(async () => {
@@ -135,6 +141,7 @@ const PlayerThunderSearchModal = ({ open, onClose }: Props) => {
     }, [name]);
 
     const selectCustomer = (customer: SearchCustomer) => {
+        isSelecting.current = true;
         setManualSelect(true);
         setName(customer.name);
         setPhone(customer.phone);
@@ -178,7 +185,7 @@ const PlayerThunderSearchModal = ({ open, onClose }: Props) => {
                             <div className="search-section">
                                 <div className="input-container" style={{ position: "relative" }}>
                                     <input
-                                        className="modal-input"
+                                        className="modal-inputs"
                                         placeholder="Player Name"
                                         value={name}
                                         onChange={(e) => setName(e.target.value)}
@@ -209,7 +216,7 @@ const PlayerThunderSearchModal = ({ open, onClose }: Props) => {
 
                                 <div className="input-container">
                                     <input
-                                        className="modal-input"
+                                        className="modal-inputs"
                                         placeholder="Phone Number"
                                         value={phone}
                                         onChange={(e) => setPhone(e.target.value)}

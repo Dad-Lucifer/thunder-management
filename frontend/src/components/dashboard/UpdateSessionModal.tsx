@@ -1,12 +1,15 @@
 
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { motion, AnimatePresence } from "framer-motion";
-import { FaTimes, FaDesktop, FaGamepad, FaClock, FaUserPlus, FaPizzaSlice, FaMinus, FaPlus, FaChevronRight, FaTrash } from "react-icons/fa";
+import { motion } from "framer-motion";
+import { FaTimes, FaDesktop, FaGamepad, FaClock, FaUserPlus, FaPizzaSlice, FaMinus, FaPlus, FaChevronRight, FaTrash, FaVrCardboard } from "react-icons/fa";
+import { GiSteeringWheel, GiCricketBat } from "react-icons/gi";
 import "./UpdateSessionModal.css";
 import SnackSelector from './SnackSelector';
 import DeviceDropdown from './DeviceDropdown';
 import { calculateSessionPrice } from '../../utils/pricing';
+import ConfirmationModal from './ConfirmationModal';
+import { useAuth } from '../../context/AuthContext';
 
 // ------------------- Types -------------------
 interface DeviceMap {
@@ -16,9 +19,6 @@ interface DeviceMap {
     wheel: number[];
     metabat: number[];
 }
-
-
-
 
 interface Availability {
     limits: Record<string, number>;
@@ -52,50 +52,22 @@ interface Props {
 // ------------------- Constants -------------------
 // const PRICE_PER_HOUR_PER_PERSON = 50; // Removed unused
 
-const TabButton = ({
-    // id,
-    label,
-    icon: Icon,
-    isActive,
-    onClick
-}: {
-    id: string,
-    label: string,
-    icon: any,
-    isActive: boolean,
-    onClick: () => void
-}) => (
-    <button
-        className={`segment-btn ${isActive ? 'active' : ''}`}
-        onClick={onClick}
-    >
-        {isActive && (
-            <motion.div
-                layoutId="segment-indicator"
-                className="absolute inset-0 bg-white/10 rounded-lg shadow-sm"
-                initial={false}
-                transition={{ type: "spring", stiffness: 500, damping: 30 }}
-            />
-        )}
-        <span className="relative z-10 flex items-center gap-2">
-            <Icon /> {label}
-        </span>
-    </button>
-);
+
 
 const UpdateSessionModal = ({ session, onClose }: Props) => {
     // ------------------- State -------------------
-    const [activeTab, setActiveTab] = useState<'extend' | 'addMember' | 'snacks' | 'split'>('extend');
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const { user } = useAuth();
 
-    // Replaced single payingNow state with specific counts
-    const [cashCount, setCashCount] = useState(0);
-    const [onlineCount, setOnlineCount] = useState(0);
-
-    // Derived total people paying now
-    const payingNow = cashCount + onlineCount;
+    // Replaced single payingNow state with toggles
+    const [paymentMethod, setPaymentMethod] = useState<'cash' | 'online'>('online');
+    const [payingNowCount, setPayingNowCount] = useState(0);
 
     const [customPayAmount, setCustomPayAmount] = useState(0);
     const [paymentMode, setPaymentMode] = useState<'equal' | 'custom'>('equal');
+
+    // Derived total people paying now
+    const payingNow = paymentMode === 'equal' ? payingNowCount : 1;
 
 
     // Feature 1: Extend Time
@@ -145,10 +117,6 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
     const currentDeviceMap = session.devices.reduce((acc, dev) => {
         if (!acc[dev.type]) acc[dev.type] = [];
         if (dev.id) acc[dev.type].push(dev.id);
-        // If id is null (legacy), we can't really represent it in number[], but pricing mostly cares about count or array length
-        // Note: frontend calculateSessionPrice normally expects number[] to determine count.
-        // If legacy data has no ID, we might need a workaround if pricing depends on specific IDs?
-        // Actually, pricing just uses .length usually. So we can push dummy values if needed, but let's assume valid IDs for now.
         return acc;
     }, {} as Record<string, number[]>);
 
@@ -192,9 +160,22 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
         new Date(session.startTime)
     );
 
-    /* ---------- STEP 2: JOIN COST (retroactive billing) ---------- */
+    /* ---------- STEP 2: JOIN COST (Initial 30-min base charge) ---------- */
     const originalStoredTotal = session.price;
-    const joinCost = Math.max(0, recalculatedOldTotal - originalStoredTotal);
+    let joinCost = 0;
+    const hasNewConfig = (newMember.peopleCount || 0) > 0 || Object.values(newMember.devices).some((arr: number[]) => arr.length > 0);
+
+    if (hasNewConfig) {
+        // The user wants group pricing (delta between total old group and total new group) rather than individual per-person pricing
+        // If the current session duration is more than half an hour (30 mins), charge according to the full user duration
+        // If it is less than half an hour (30 mins), charge a minimum of half an hour (0.5 hrs)
+        const joinDurationHrs = (session.duration || 0) > 30 ? (session.duration / 60) : 0.5;
+
+        const baseNewConfig = calculateSessionPrice(joinDurationHrs, totalPeople, mergedDevices, new Date(session.startTime));
+        const baseOldConfig = calculateSessionPrice(joinDurationHrs, session.peopleCount || 1, currentDeviceMap, new Date(session.startTime));
+
+        joinCost = Math.max(0, baseNewConfig - baseOldConfig);
+    }
 
     /* ---------- STEP 3: EXTENSION COST ---------- */
     const recalculatedNewTotal = calculateSessionPrice(
@@ -222,30 +203,12 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
 
     // Calculate the cost of EXTRA time for REMAINING people
     // CRITICAL: Use Delta Pricing to avoid re-triggering "First Hour" base costs
-    // const priceWithTotalTime = calculateSessionPrice(
-    //     newDuration,
-    //     currentRemainingPeople,
-    //     mergedDevices,
-    //     new Date()
-    // );
-
-    // const priceWithOriginalTime = calculateSessionPrice(
-    //     session.duration || 0,
-    //     currentRemainingPeople,
-    //     mergedDevices,
-    //     new Date()
-    // );
-
 
     const extraTimeCost = Math.max(0, recalculatedNewTotal - recalculatedOldTotal);
     // Total new charges = extra time for remaining people + snacks
 
     /* ---------- STEP 4: FINAL NEW CHARGES ---------- */
     const chargesAsString = joinCost + extraTimeCost + newSnackCost;
-
-    // CRITICAL: finalBill should be the TOTAL bill (session.price + new charges)
-    // const finalBill = session.price + chargesAsString;
-
 
     /* ---------- TOTAL SESSION VALUE AFTER UPDATE ---------- */
     const totalToPay = originalStoredTotal + chargesAsString;
@@ -254,8 +217,7 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
     const currentRemainingAmount = session.remainingAmount ?? session.price;
     const alreadyPaidAmount = session.paidAmount || 0;
 
-    // Calculate new remaining people (subtract those paying, add new members)
-    const newRemainingPeople = Math.max(0, currentRemainingPeople - payingNow + (newMember.peopleCount || 0));
+    // Removed unused newRemainingPeople calculation
 
     // CRITICAL FIX: Simplify share calculation
     // Instead of complex reconstruction, simply divide TOTAL PENDING by REMAINING PEOPLE.
@@ -279,15 +241,9 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
 
     const newRemainingAmount = Math.max(0, totalPendingToPay - payNowAmount);
 
-    const newRemainingPeopleAfterPay =
-        paymentMode === 'equal'
-            ? Math.max(0, currentRemainingPeople - payingNow)
-            : Math.max(1, currentRemainingPeople - 1); // birthday guy leaves
 
-    const newPerPersonShare =
-        newRemainingPeopleAfterPay > 0
-            ? newRemainingAmount / newRemainingPeopleAfterPay
-            : 0;
+
+
 
 
     // ------------------- Handlers -------------------
@@ -300,11 +256,18 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
     };
 
     const handleDelete = async () => {
-        if (!window.confirm("Are you sure you want to delete this session? This cannot be undone.")) return;
+        setShowDeleteConfirm(true);
+    };
 
+    const confirmDelete = async () => {
         try {
-            await axios.delete(`https://thunder-management.onrender.com/api/sessions/delete/${session.id}`);
-            alert("Session deleted successfully");
+            await axios.delete(`https://thunder-management.onrender.com/api/sessions/delete/${session.id}`, {
+                data: {
+                    deletedBy: user?.role === 'owner' ? 'Owner' : 'Employee',
+                    deletedByName: user?.username || 'Unknown'
+                }
+            });
+            setShowDeleteConfirm(false);
             onClose();
         } catch (err) {
             console.error(err);
@@ -329,8 +292,8 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
                 payingPeopleNow: paymentMode === 'equal' ? payingNow : 1,
                 paymentMode,
                 // Add split counts to payload
-                cashCount,
-                onlineCount
+                cashCount: paymentMethod === 'cash' ? payingNow : 0,
+                onlineCount: paymentMethod === 'online' ? payingNow : 0
             };
 
             await axios.post(
@@ -357,282 +320,227 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
             >
                 {/* Header */}
                 <div className="modal-header">
-                    <h2 className="modal-title">Update Session</h2>
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+                            <FaClock size={14} />
+                        </div>
+                        <h2 className="modal-title">Update Session</h2>
+                    </div>
                     <button className="close-icon-btn" onClick={onClose}>
-                        <FaTimes />
+                        <FaTimes size={14} />
                     </button>
                 </div>
 
-                {/* Tabs */}
-                <div className="segmented-control">
-                    <TabButton
-                        id="extend"
-                        label="Time"
-                        icon={FaClock}
-                        isActive={activeTab === 'extend'}
-                        onClick={() => setActiveTab('extend')}
-                    />
-                    <TabButton
-                        id="addMember"
-                        label="People"
-                        icon={FaUserPlus}
-                        isActive={activeTab === 'addMember'}
-                        onClick={() => setActiveTab('addMember')}
-                    />
-                    <TabButton
-                        id="snacks"
-                        label="Snacks"
-                        icon={FaPizzaSlice}
-                        isActive={activeTab === 'snacks'}
-                        onClick={() => setActiveTab('snacks')}
-                    />
-                    <TabButton
-                        id="split"
-                        label="Split"
-                        icon={FaUserPlus}
-                        isActive={activeTab === 'split'}
-                        onClick={() => setActiveTab('split')}
-                    />
-
-                </div>
-
                 {/* Content */}
-                <div className="content-wrapper custom-scrollbar">
-                    <AnimatePresence mode="wait">
-                        {activeTab === 'extend' && (
-                            <motion.div
-                                key="extend"
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: 10 }}
-                                transition={{ duration: 0.2 }}
-                            >
+                <div className="content-wrapper custom-scrollbar" style={{ paddingTop: '1.5rem', paddingBottom: '2rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 350px', gap: '2.5rem', alignItems: 'start' }}>
+
+                        {/* LEFT COLUMN: Adjustments */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+
+                            <section>
+                                <h3 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-subtle)' }}>
+                                    <FaClock style={{ display: 'inline', marginRight: '6px' }} /> Update Time
+                                </h3>
                                 <div className="minimal-counter">
-                                    <button className="counter-btn" onClick={() => setExtraMinutes(prev => Math.max(15, prev - 15))}>
+                                    <button className="counter-btn" onClick={() => setExtraMinutes(prev => Math.max(0, prev - 15))}>
                                         <FaMinus size={12} />
                                     </button>
                                     <div className="counter-display">
                                         <div className="counter-value">{extraMinutes}</div>
-                                        <span className="counter-label">minutes added</span>
+                                        <span className="counter-label">Minutes Added</span>
                                     </div>
                                     <button className="counter-btn" onClick={() => setExtraMinutes(prev => prev + 15)}>
                                         <FaPlus size={12} />
                                     </button>
                                 </div>
-
-                                <div className="text-sm text-gray-400 text-center">
-                                    Current Session Time: {Math.floor(session.duration / 60)}h {session.duration % 60}m
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '1rem', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.05)', background: 'rgba(255, 255, 255, 0.01)' }}>
+                                    <span style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: 500 }}>Current Session Time</span>
+                                    <span style={{ color: '#c084fc', fontWeight: 'bold', fontFamily: 'Orbitron, sans-serif' }}>
+                                        {Math.floor(session.duration)}h {Math.round((session.duration % 1) * 60)}m
+                                    </span>
                                 </div>
-                            </motion.div>
-                        )}
+                            </section>
 
-                        {activeTab === 'addMember' && (
-                            <motion.div
-                                key="members"
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: 10 }}
-                                transition={{ duration: 0.2 }}
-                                className="item-grid"
-                            >
-                                <input
-                                    placeholder=" New Player Name"
-                                    className="w-full h-10 bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 transition-colors mb-4"
-                                    value={newMember.name}
-                                    onChange={e => setNewMember({ ...newMember, name: e.target.value })}
-                                />
-
-                                <div className="minimal-counter ">
-                                    <button className="counter-btn" onClick={() => setNewMember(p => ({ ...p, peopleCount: Math.max(0, p.peopleCount - 1) }))}>
-                                        <FaMinus size={12} />
-                                    </button>
-                                    <div className="counter-display">
-                                        <div className="counter-value">{newMember.peopleCount}</div>
-                                        <span className="counter-label">new players</span>
+                            <section>
+                                <h3 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-subtle)' }}>
+                                    <FaUserPlus style={{ display: 'inline', marginRight: '6px' }} /> Players & Devices
+                                </h3>
+                                <div className="item-grid">
+                                    <div className="input-group">
+                                        <label className="input-label">New Player Name (Optional)</label>
+                                        <input
+                                            placeholder="e.g. Rahul Sharma"
+                                            className="modal-input"
+                                            value={newMember.name}
+                                            onChange={e => setNewMember({ ...newMember, name: e.target.value })}
+                                        />
                                     </div>
-                                    <button className="counter-btn" onClick={() => setNewMember(p => ({ ...p, peopleCount: p.peopleCount + 1 }))}>
-                                        <FaPlus size={12} />
-                                    </button>
+                                    <div className="minimal-counter ">
+                                        <button className="counter-btn" onClick={() => setNewMember(p => ({ ...p, peopleCount: Math.max(0, p.peopleCount - 1) }))}>
+                                            <FaMinus size={12} />
+                                        </button>
+                                        <div className="counter-display">
+                                            <div className="counter-value">{newMember.peopleCount}</div>
+                                            <span className="counter-label">New Players</span>
+                                        </div>
+                                        <button className="counter-btn" onClick={() => setNewMember(p => ({ ...p, peopleCount: p.peopleCount + 1 }))}>
+                                            <FaPlus size={12} />
+                                        </button>
+                                    </div>
+                                    <div style={{ paddingBottom: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', marginTop: '1.5rem', marginBottom: '1rem' }}>
+                                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Assign Hardware</h4>
+                                    </div>
+                                    <div className="devices-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.75rem' }}>
+                                        <DeviceDropdown icon={<FaGamepad />} label="PS5" limit={availability.limits.ps} value={newMember.devices.ps} occupied={availability.occupied.ps || []} onChange={v => updateDevice('ps', v)} />
+                                        <DeviceDropdown icon={<FaDesktop />} label="PC" limit={availability.limits.pc} value={newMember.devices.pc} occupied={availability.occupied.pc || []} onChange={v => updateDevice('pc', v)} />
+                                        <DeviceDropdown icon={<FaVrCardboard />} label="VR" limit={availability.limits.vr} value={newMember.devices.vr} occupied={availability.occupied.vr || []} onChange={v => updateDevice('vr', v)} />
+                                        <DeviceDropdown icon={<GiSteeringWheel />} label="Wheel" limit={availability.limits.wheel} value={newMember.devices.wheel} occupied={availability.occupied.wheel || []} onChange={v => updateDevice('wheel', v)} />
+                                        <DeviceDropdown icon={<GiCricketBat />} label="MetaBat" limit={availability.limits.metabat} value={newMember.devices.metabat} occupied={availability.occupied.metabat || []} onChange={v => updateDevice('metabat', v)} />
+                                    </div>
                                 </div>
+                            </section>
 
-                                <h4 className="text-xs font-bold text-gray-500 uppercase mt-4 mb-2">Assign Devices</h4>
-                                <div className="devices-list" style={{ display: 'grid', gap: '0.75rem' }}>
-                                    <DeviceDropdown
-                                        icon={<FaGamepad />}
-                                        label="PS5"
-                                        limit={availability.limits.ps}
-                                        value={newMember.devices.ps}
-                                        occupied={availability.occupied.ps || []}
-                                        onChange={v => updateDevice('ps', v)}
-                                    />
-                                    <DeviceDropdown
-                                        icon={<FaDesktop />}
-                                        label="PC"
-                                        limit={availability.limits.pc}
-                                        value={newMember.devices.pc}
-                                        occupied={availability.occupied.pc || []}
-                                        onChange={v => updateDevice('pc', v)}
-                                    />
-                                    <DeviceDropdown
-                                        icon={<FaUserPlus />} // VR Icon placeholder
-                                        label="VR"
-                                        limit={availability.limits.vr}
-                                        value={newMember.devices.vr}
-                                        occupied={availability.occupied.vr || []}
-                                        onChange={v => updateDevice('vr', v)}
-                                    />
-                                </div>
-                            </motion.div>
-                        )}
-
-                        {activeTab === 'snacks' && (
-                            <motion.div
-                                key="snacks"
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: 10 }}
-                                transition={{ duration: 0.2 }}
-                                className="item-grid"
-                                style={{ display: 'block' }} // Allow block layout for selector
-                            >
+                            <section>
+                                <h3 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-subtle)' }}>
+                                    <FaPizzaSlice style={{ display: 'inline', marginRight: '6px' }} /> Add Snacks
+                                </h3>
                                 <SnackSelector
                                     onChange={(_, cost, items) => {
                                         setNewSnackCost(cost);
                                         setNewSnackItems(items.map(i => ({ name: i.name, quantity: i.qty })));
                                     }}
                                 />
-                            </motion.div>
-                        )}
-                        {activeTab === 'split' && (
-                            <motion.div>
-                                <div className="invoice-card">
-                                    <div className="invoice-header">
-                                        <div className="invoice-title">Total Session Cost</div>
-                                        <div className="invoice-total-display">
-                                            ₹{(session.price + chargesAsString).toFixed(0)}
-                                        </div>
-                                        <div className="invoice-subtitle">
-                                            Old Price: ₹{session.price} + New Charges: ₹{chargesAsString}
-                                        </div>
+                            </section>
+                        </div>
+
+                        {/* RIGHT COLUMN: Invoice */}
+                        <div style={{ position: 'sticky', top: '0', height: 'fit-content' }}>
+                            <div className="invoice-card" style={{ boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}>
+                                <div className="invoice-header">
+                                    <div className="invoice-title">Total Session Cost</div>
+                                    <div className="invoice-total-display">
+                                        ₹{(session.price + chargesAsString).toFixed(0)}
                                     </div>
-
-                                    <div className="invoice-row">
-                                        <span className="invoice-label">Total People</span>
-                                        <span className="invoice-val">{totalPeople}</span>
-                                    </div>
-
-                                    <div className="invoice-row">
-                                        <span className="invoice-label">Per Person Share</span>
-                                        <span className="invoice-val">₹{perPersonShare.toFixed(0)}</span>
-                                    </div>
-
-                                    <div className="invoice-row" style={{ borderTop: '1px dashed var(--border-subtle)', paddingTop: '0.75rem', marginTop: '0.25rem' }}>
-                                        <span className="invoice-label">Already Paid</span>
-                                        <span className="invoice-val" style={{ color: '#4ade80' }}>₹{alreadyPaidAmount.toFixed(0)}</span>
-                                    </div>
-
-                                    <div className="invoice-row">
-                                        <span className="invoice-label">Current Pending</span>
-                                        <span className="invoice-val">₹{currentRemainingAmount.toFixed(0)}
-                                        </span>
-                                    </div>
-
-                                    <div className="invoice-row" style={{ marginTop: '0.5rem', borderTop: '1px dashed var(--border-subtle)', paddingTop: '0.75rem' }}>
-                                        <span className="invoice-label">Payment Type</span>
-                                        <select
-                                            className="invoice-field"
-                                            value={paymentMode}
-                                            onChange={e => setPaymentMode(e.target.value as any)}
-                                        >
-                                            <option value="equal">Equal Split</option>
-                                            <option value="custom">Custom Amount</option>
-                                        </select>
-                                    </div>
-
-                                    {paymentMode === 'equal' && (
-                                        <div style={{
-                                            display: 'grid',
-                                            gridTemplateColumns: '1fr 1fr',
-                                            gap: '12px',
-                                            marginTop: '12px',
-                                            marginBottom: '12px'
-                                        }}>
-                                            <div style={{
-                                                background: 'rgba(74, 222, 128, 0.05)',
-                                                border: '1px solid rgba(74, 222, 128, 0.1)',
-                                                padding: '12px',
-                                                borderRadius: '12px'
-                                            }}>
-                                                <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#4ade80', marginBottom: '8px', textTransform: 'uppercase' }}>CASH Payers</div>
-                                                <input
-                                                    type="number"
-                                                    min={0}
-                                                    max={newRemainingPeople}
-                                                    value={cashCount}
-                                                    onChange={e => {
-                                                        const val = Math.max(0, Number(e.target.value));
-                                                        setCashCount(val);
-                                                        // Ensure logical consistency if needed, but allowing free input is often easier
-                                                    }}
-                                                    className="invoice-field"
-                                                    style={{ width: '100%', textAlign: 'center', fontSize: '1.2rem', fontWeight: 'bold' }}
-                                                />
-                                            </div>
-                                            <div style={{
-                                                background: 'rgba(59, 130, 246, 0.05)',
-                                                border: '1px solid rgba(59, 130, 246, 0.1)',
-                                                padding: '12px',
-                                                borderRadius: '12px'
-                                            }}>
-                                                <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#60a5fa', marginBottom: '8px', textTransform: 'uppercase' }}>ONLINE Payers</div>
-                                                <input
-                                                    type="number"
-                                                    min={0}
-                                                    max={newRemainingPeople}
-                                                    value={onlineCount}
-                                                    onChange={e => {
-                                                        const val = Math.max(0, Number(e.target.value));
-                                                        setOnlineCount(val);
-                                                    }}
-                                                    className="invoice-field"
-                                                    style={{ width: '100%', textAlign: 'center', fontSize: '1.2rem', fontWeight: 'bold' }}
-                                                />
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {paymentMode === 'custom' && (
-                                        <div className="invoice-row" style={{ marginTop: '10px' }}>
-                                            <span className="invoice-label">Enter Amount</span>
-                                            <input
-                                                type="number"
-                                                className="invoice-field"
-                                                value={customPayAmount}
-                                                onChange={e => setCustomPayAmount(Number(e.target.value))}
-                                            />
-                                        </div>
-                                    )}
-
-
-                                    <div className="invoice-row" style={{ marginTop: '10px' }}>
-                                        <span className="invoice-label">Pay Now Amount</span>
-                                        <span className="invoice-val" style={{ color: 'var(--accent-primary)' }}>
-                                            ₹{payNowAmount.toFixed(0)}
-                                        </span>
-                                    </div>
-
-                                    <div className="invoice-row" style={{ borderTop: '1px dashed var(--border-subtle)', paddingTop: '0.75rem', marginTop: '0.25rem' }}>
-                                        <span className="invoice-label">New Pending Balance</span>
-                                        <span className="invoice-val" style={{ fontWeight: 'bold', color: newRemainingAmount === 0 ? '#4ade80' : 'inherit' }}>
-                                            ₹{newRemainingAmount.toFixed(0)}
-
-                                        </span>
+                                    <div className="invoice-subtitle">
+                                        Old Price: ₹{session.price} + New Charges: ₹{chargesAsString}
                                     </div>
                                 </div>
-                            </motion.div>
-                        )}
 
-                    </AnimatePresence>
+                                <div className="invoice-row">
+                                    <span className="invoice-label">Total People</span>
+                                    <span className="invoice-val">{totalPeople}</span>
+                                </div>
+
+                                <div className="invoice-row">
+                                    <span className="invoice-label">Per Person Share</span>
+                                    <span className="invoice-val">₹{perPersonShare.toFixed(0)}</span>
+                                </div>
+
+                                <div className="invoice-row" style={{ borderTop: '1px dashed var(--border-subtle)', paddingTop: '0.75rem', marginTop: '0.25rem' }}>
+                                    <span className="invoice-label">Already Paid</span>
+                                    <span className="invoice-val" style={{ color: '#4ade80' }}>₹{alreadyPaidAmount.toFixed(0)}</span>
+                                </div>
+
+                                <div className="invoice-row">
+                                    <span className="invoice-label">Current Pending</span>
+                                    <span className="invoice-val">₹{currentRemainingAmount.toFixed(0)}</span>
+                                </div>
+
+                                <div className="invoice-row" style={{ marginTop: '0.5rem', borderTop: '1px dashed var(--border-subtle)', paddingTop: '0.75rem' }}>
+                                    <span className="invoice-label">Payment Type</span>
+                                    <select
+                                        className="modal-input"
+                                        style={{ width: '160px', padding: '0.5rem 0.8rem', textAlign: 'left' }}
+                                        value={paymentMode}
+                                        onChange={e => setPaymentMode(e.target.value as any)}
+                                    >
+                                        <option value="equal">Equal Split</option>
+                                        <option value="custom">Custom Amount</option>
+                                    </select>
+                                </div>
+
+                                {paymentMode === 'equal' && (
+                                    <div className="invoice-row" style={{ marginTop: '10px' }}>
+                                        <span className="invoice-label">People Paying Now</span>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <button
+                                                onClick={() => setPayingNowCount(p => Math.max(0, p - 1))}
+                                                style={{ width: '32px', height: '32px', borderRadius: '8px', border: '1px solid var(--border-subtle)', display: 'grid', placeItems: 'center', background: 'var(--modal-surface-hover)' }}
+                                            >
+                                                <FaMinus size={10} />
+                                            </button>
+                                            <span style={{ fontWeight: 'bold', fontSize: '1.2rem', width: '24px', textAlign: 'center' }}>
+                                                {payingNowCount}
+                                            </span>
+                                            <button
+                                                onClick={() => setPayingNowCount(p => Math.min(currentRemainingPeople + (newMember.peopleCount || 0), p + 1))}
+                                                style={{ width: '32px', height: '32px', borderRadius: '8px', border: '1px solid var(--border-subtle)', display: 'grid', placeItems: 'center', background: 'var(--modal-surface-hover)' }}
+                                            >
+                                                <FaPlus size={10} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="invoice-row" style={{ marginTop: '10px', alignItems: 'flex-start' }}>
+                                    <span className="invoice-label" style={{ marginTop: '8px' }}>Payment Method</span>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <button
+                                            onClick={() => setPaymentMethod('cash')}
+                                            style={{
+                                                padding: '0.4rem 0.8rem', borderRadius: '8px', fontFamily: 'inherit', fontWeight: 600, fontSize: '0.85rem',
+                                                background: paymentMethod === 'cash' ? 'rgba(74, 222, 128, 0.1)' : 'transparent',
+                                                border: `1px solid ${paymentMethod === 'cash' ? 'rgba(74, 222, 128, 0.5)' : 'var(--border-subtle)'}`,
+                                                color: paymentMethod === 'cash' ? '#4ade80' : 'var(--text-secondary)',
+                                                transition: 'all 0.2s', cursor: 'pointer'
+                                            }}
+                                        >
+                                            Cash
+                                        </button>
+                                        <button
+                                            onClick={() => setPaymentMethod('online')}
+                                            style={{
+                                                padding: '0.4rem 0.8rem', borderRadius: '8px', fontFamily: 'inherit', fontWeight: 600, fontSize: '0.85rem',
+                                                background: paymentMethod === 'online' ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                                                border: `1px solid ${paymentMethod === 'online' ? 'rgba(59, 130, 246, 0.5)' : 'var(--border-subtle)'}`,
+                                                color: paymentMethod === 'online' ? '#60a5fa' : 'var(--text-secondary)',
+                                                transition: 'all 0.2s', cursor: 'pointer'
+                                            }}
+                                        >
+                                            Online
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {paymentMode === 'custom' && (
+                                    <div className="invoice-row" style={{ marginTop: '10px' }}>
+                                        <span className="invoice-label">Enter Amount</span>
+                                        <input
+                                            type="number"
+                                            className="invoice-field"
+                                            value={customPayAmount}
+                                            onChange={e => setCustomPayAmount(Number(e.target.value))}
+                                        />
+                                    </div>
+                                )}
+
+                                <div className="invoice-row" style={{ marginTop: '10px' }}>
+                                    <span className="invoice-label">Pay Now Amount</span>
+                                    <span className="invoice-val" style={{ color: 'var(--accent-primary)' }}>
+                                        ₹{payNowAmount.toFixed(0)}
+                                    </span>
+                                </div>
+
+                                <div className="invoice-row" style={{ borderTop: '1px dashed var(--border-subtle)', paddingTop: '0.75rem', marginTop: '0.25rem' }}>
+                                    <span className="invoice-label">New Pending Balance</span>
+                                    <span className="invoice-val" style={{ fontWeight: 'bold', color: newRemainingAmount === 0 ? '#4ade80' : 'inherit' }}>
+                                        ₹{newRemainingAmount.toFixed(0)}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Footer */}
@@ -662,6 +570,16 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
                 </div>
 
             </motion.div>
+
+            {/* Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={showDeleteConfirm}
+                onClose={() => setShowDeleteConfirm(false)}
+                onConfirm={confirmDelete}
+                title="Delete Session?"
+                message={`Are you sure you want to delete this session for ${session.customer}? This action cannot be undone.`}
+                isDanger={true}
+            />
         </div>
     );
 };

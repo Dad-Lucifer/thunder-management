@@ -154,11 +154,13 @@
 
 /* Side-by-Side Grid for Large Screens */
 .players-grid {
-    display: grid;
-    grid-template-columns: 1fr 60px 1fr;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
     /* Player VS Player */
     gap: 1rem;
-    align-items: start;
+    width: 100%;
 }
 
 @media (max-width: 768px) {
@@ -171,6 +173,7 @@
 
 /* --- Player Cards --- */
 .player-card {
+    width: 100%;
     background: rgba(255, 255, 255, 0.02);
     border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 12px;
@@ -263,21 +266,60 @@
     display: block;
 }
 
+/* --- Dropdown Auth --- */
+.player-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background-color: #0f1014;
+    border: 1px solid #27272a;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    z-index: 50;
+    max-height: 150px;
+    overflow-y: auto;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+}
+
+.dropdown-item {
+    padding: 0.75rem 0.8rem;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: #cbd5e1;
+    transition: background-color 0.2s, color 0.2s;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.dropdown-item:last-child {
+    border-bottom: none;
+}
+
+.dropdown-item:hover {
+    background-color: rgba(139, 92, 246, 0.15);
+    color: #fff;
+}
+
 /* --- VS Divider --- */
-.vs-divider {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
+.vs {
     font-family: 'Orbitron', sans-serif;
-    font-weight: 900;
-    font-size: 1.5rem;
-    color: rgba(255, 255, 255, 0.1);
+    /* Tech font */
+    font-size: 3rem;
+    font-weight: 1000;
+    font-style: italic;
+    background: linear-gradient(to bottom, #ef4444, #f59e0b);
+    /* Fire gradient */
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.5));
+    transform: skewX(-10deg);
+    margin-left: -2px;
     user-select: none;
 }
 
 @media (max-width: 768px) {
-    .vs-divider {
+    .vs {
         height: auto;
         padding: 1rem 0;
         font-size: 1.25rem;

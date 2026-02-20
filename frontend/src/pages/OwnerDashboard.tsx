@@ -11,10 +11,11 @@ import DashboardLayout from '../layouts/DashboardLayout';
 import {
     GlassCard, GradientTitle, TabGroup, ActionButton, QuickStat
 } from '../components/owner/ui/ModernComponents';
-import SubscriptionOverview from '../components/owner/SubscriptionOverview';
+import SubscriptionOverview from "../components/owner/SubscriptionOverview.tsx";
 import RecentTransactions from '../components/owner/RecentTransactions';
 
 import OwnerPieCharts from '../components/owner/OwnerPieCharts';
+import DeletionLogs from '../components/owner/DeletionLogs';
 import SnackOverview from '../components/owner/SnackOverview'; // Import SnackOverview
 import { useSessionExport } from '../components/owner/ExportSessionsReport';
 
@@ -153,7 +154,7 @@ const OwnerDashboard: React.FC = () => {
                             </div>
 
                             <div className="chart-wrapper">
-                                <ResponsiveContainer width="90%" height="100%">
+                                <ResponsiveContainer width="100%" height={350}>
                                     <AreaChart data={revenueTrends}>
                                         <defs>
                                             <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
@@ -230,9 +231,10 @@ const OwnerDashboard: React.FC = () => {
                     </div>
                 </section>
 
-                {/* 5. Snacks */}
-                <section className="bottom-section" style={{ marginTop: '1.5rem' }}>
+                {/* 5. Snacks & Deletion Audits */}
+                <section className="operational-grid" style={{ marginTop: '1.5rem', display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '1.5rem' }}>
                     <SnackOverview />
+                    <DeletionLogs />
                 </section>
 
             </div>

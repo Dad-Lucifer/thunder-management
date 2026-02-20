@@ -649,8 +649,29 @@ const completeSession = async (req, res) => {
 const deleteSession = async (req, res) => {
     try {
         const { id } = req.params;
-        await db.collection('sessions').doc(id).delete();
-        res.status(200).json({ message: 'Session deleted successfully' });
+        const { deletedBy, deletedByName } = req.body; // Expect user info
+
+        const docRef = db.collection('sessions').doc(id);
+        const doc = await docRef.get();
+
+        if (doc.exists) {
+            const data = doc.data();
+            // Create Audit Log
+            await db.collection('deletion_logs').add({
+                source: 'Active Session',
+                targetId: id,
+                customerName: data.customerName || 'Unknown',
+                details: data,
+                deletedBy: deletedBy || 'Unknown', // 'owner' or 'employee'
+                deletedByName: deletedByName || 'Unknown',
+                deletedAt: new Date().toISOString()
+            });
+
+            await docRef.delete();
+            res.status(200).json({ message: 'Session deleted and logged successfully' });
+        } else {
+            res.status(404).json({ message: 'Session not found' });
+        }
     } catch (error) {
         console.error('Error deleting session:', error);
         res.status(500).json({ message: 'Failed to delete session' });
@@ -660,8 +681,29 @@ const deleteSession = async (req, res) => {
 const deleteBooking = async (req, res) => {
     try {
         const { id } = req.params;
-        await db.collection('bookings').doc(id).delete();
-        res.status(200).json({ message: 'Booking deleted successfully' });
+        const { deletedBy, deletedByName } = req.body;
+
+        const docRef = db.collection('bookings').doc(id);
+        const doc = await docRef.get();
+
+        if (doc.exists) {
+            const data = doc.data();
+            // Create Audit Log
+            await db.collection('deletion_logs').add({
+                source: 'Upcoming Booking',
+                targetId: id,
+                customerName: data.customerName || 'Unknown',
+                details: data,
+                deletedBy: deletedBy || 'Unknown',
+                deletedByName: deletedByName || 'Unknown',
+                deletedAt: new Date().toISOString()
+            });
+
+            await docRef.delete();
+            res.status(200).json({ message: 'Booking deleted and logged successfully' });
+        } else {
+            res.status(404).json({ message: 'Booking not found' });
+        }
     } catch (error) {
         console.error('Error deleting booking:', error);
         res.status(500).json({ message: 'Failed to delete booking' });

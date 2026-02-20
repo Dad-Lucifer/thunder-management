@@ -8,7 +8,8 @@ import {
     FaRocket,
     FaUser,
     FaClock,
-    FaTimes
+    FaTimes,
+    FaCheckCircle
 } from 'react-icons/fa';
 import { GiSteeringWheel, GiCricketBat } from 'react-icons/gi';
 import axios from 'axios';
@@ -62,6 +63,7 @@ import SnackSelector from './SnackSelector';
 /* ---------------- MAIN ---------------- */
 
 const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
+    const isSelecting = React.useRef(false);
     const [playerData, setPlayerData] = useState<ThunderPlayer | null>(null);
 
     const [isFetchingPlayer, setIsFetchingPlayer] = useState(false);
@@ -187,6 +189,11 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
             return;
         }
 
+        if (isSelecting.current) {
+            isSelecting.current = false;
+            return;
+        }
+
         let cancel = false;
 
         const timer = setTimeout(async () => {
@@ -218,6 +225,7 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
     }, [form.customerName]);
 
     const selectCustomer = (customer: SearchCustomer) => {
+        isSelecting.current = true;
         updateField("customerName", customer.name);
         updateField("contactNumber", customer.phone);
         setShowDropdown(false);
@@ -253,6 +261,8 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
     /* ----------------------------------- */
 
+    const [showSuccess, setShowSuccess] = useState(false);
+
     const startSession = async () => {
         try {
             if (!form.customerName) {
@@ -268,27 +278,31 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 thunderCoinsUsed: coinsUsed
             });
 
-            alert('Session started 🚀');
+            // Show Success UI
+            setShowSuccess(true);
 
-            // Reset form
-            setForm({
-                customerName: '',
-                contactNumber: '',
-                duration: "00:00",
-                peopleCount: 1,
-                gameName: "",
-                snacks: '',
-                devices: { ps: [], pc: [], vr: [], wheel: [], metabat: [] }
-            });
-            setSnackItems([]); // Reset snacks
+            // Cleanup after animation
+            setTimeout(() => {
+                // Reset form
+                setForm({
+                    customerName: '',
+                    contactNumber: '',
+                    duration: "00:00",
+                    peopleCount: 1,
+                    gameName: "",
+                    snacks: '',
+                    devices: { ps: [], pc: [], vr: [], wheel: [], metabat: [] }
+                });
+                setSnackItems([]); // Reset snacks
+                setCoinDiscount(0);
+                setCoinsApplied(false);
+                setPlayerData(prev =>
+                    prev ? { ...prev, thunderCoins: prev.thunderCoins - coinsUsed } : null
+                );
 
-            onClose(); // Close modal on success
-            setCoinDiscount(0);
-            setCoinsApplied(false);
-            setPlayerData(prev =>
-                prev ? { ...prev, thunderCoins: prev.thunderCoins - coinsUsed } : null
-            );
-
+                setShowSuccess(false);
+                onClose(); // Close modal on success
+            }, 2000);
 
         } catch (error: any) {
             console.error(error);
@@ -329,12 +343,90 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
             {isOpen && (
                 <div className="modal-backdrop">
                     <motion.div
-                        className="modal-container"
+                        className="modal-containers"
                         style={{ maxWidth: '800px' }} // Wider for this form
                         initial={{ opacity: 0, scale: 0.95, y: 10 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 10 }}
                     >
+                        {/* Success Overlay */}
+                        <AnimatePresence>
+                            {showSuccess && (
+                                <motion.div
+                                    className="success-overlay-absolute"
+                                    initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
+                                    animate={{ opacity: 1, backdropFilter: "blur(10px)" }}
+                                    exit={{ opacity: 0 }}
+                                    style={{
+                                        position: 'absolute',
+                                        inset: 0,
+                                        zIndex: 50,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        background: 'rgba(2, 6, 23, 0.85)',
+                                        borderRadius: '24px',
+                                        flexDirection: 'column',
+                                        gap: '20px'
+                                    }}
+                                >
+                                    <motion.div
+                                        initial={{ scale: 0, rotate: -180 }}
+                                        animate={{ scale: 1, rotate: 0 }}
+                                        transition={{ type: "spring", damping: 12 }}
+                                        style={{
+                                            width: '80px',
+                                            height: '80px',
+                                            borderRadius: '50%',
+                                            background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            boxShadow: '0 0 30px rgba(34, 197, 94, 0.5)'
+                                        }}
+                                    >
+                                        <FaCheckCircle style={{ fontSize: '40px', color: '#fff' }} />
+                                    </motion.div>
+
+                                    <div style={{ textAlign: 'center' }}>
+                                        <motion.h2
+                                            initial={{ opacity: 0, y: 20 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ delay: 0.2 }}
+                                            style={{
+                                                fontSize: '2rem',
+                                                color: '#fff',
+                                                marginBottom: '8px',
+                                                fontWeight: 800,
+                                                fontFamily: "'Outfit', sans-serif"
+                                            }}
+                                        >
+                                            Session Active!
+                                        </motion.h2>
+                                        <motion.p
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            transition={{ delay: 0.3 }}
+                                            style={{ color: '#94a3b8', fontSize: '1.1rem' }}
+                                        >
+                                            Have fun, <span style={{ color: '#22c55e', fontWeight: 600 }}>{form.customerName}</span>
+                                        </motion.p>
+                                    </div>
+
+                                    {/* Tech Lines Decoration */}
+                                    <div style={{
+                                        position: 'absolute',
+                                        bottom: 0,
+                                        left: 0,
+                                        right: 0,
+                                        height: '4px',
+                                        background: 'linear-gradient(90deg, #22c55e, #3b82f6)',
+                                        boxShadow: '0 0 20px rgba(34, 197, 94, 0.5)'
+                                    }} />
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
                         {/* Header */}
                         <div className="modal-header">
                             <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

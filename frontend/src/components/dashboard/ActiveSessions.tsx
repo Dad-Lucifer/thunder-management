@@ -10,8 +10,7 @@ import { isFunNightTime, isNormalHourTime } from '../../utils/pricing';
 /* ---------------------------------------
    Device Icon Helper
 --------------------------------------- */
-const DeviceIcon = ({ type }: { type: string }) => {
-  const size = 14;
+const DeviceIcon = ({ type, size = 14 }: { type: string, size?: number }) => {
   switch (type) {
     case 'ps': return <FaPlaystation size={size} />;
     case 'pc': return <FaDesktop size={size} />;
@@ -192,11 +191,11 @@ const ActiveSessions = () => {
       {/* Header */}
       <div className="sessions-header">
         <h3 className="section-title-lg">Active Sessions
-          {isFunNight && <span style={{ color: '#ec4899', fontSize: '0.6em', border: '1px solid #ec4899', padding: '2px 8px', borderRadius: '12px', marginLeft: 8, verticalAlign: 'middle' }}>🌙 Fun Night</span>}
-          {isNormalHour && <span style={{ color: '#3b82f6', fontSize: '0.6em', border: '1px solid #3b82f6', padding: '2px 8px', borderRadius: '12px', marginLeft: 8, verticalAlign: 'middle' }}>☀️ Normal Hour</span>}
+          {isFunNight && <span className="badge-fun-night">🌙 Fun Night</span>}
+          {isNormalHour && <span className="badge-normal-hour">☀️ Normal Hour</span>}
         </h3>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <span style={{ fontSize: '0.9rem', color: '#a1a1aa' }}>
+          <span className="player-count">
             {sessions.length} Players Online
           </span>
         </div>
@@ -214,7 +213,7 @@ const ActiveSessions = () => {
         )}
 
         {!loading && sessions.map((session) => {
-          const { progress, isUrgent, timeText } = getSessionDetails(session);
+          const { progress, isUrgent } = getSessionDetails(session);
 
           return (
             <div
@@ -222,8 +221,7 @@ const ActiveSessions = () => {
               className={`session-card-premium ${isUrgent ? 'urgent' : ''}`}
               onClick={() => setSelectedSession(session)}
             >
-              {/* Top Stripe */}
-              <div className="card-status-stripe" />
+              {/* Top Stripe - REMOVED for Neon Look */}
 
               <div className="card-content">
                 {/* Header: User */}
@@ -237,17 +235,11 @@ const ActiveSessions = () => {
                   </div>
                 </div>
 
-                {/* Big Timer */}
-                <div className="timer-display-big">
-                  <span className="time-remaining">{timeText}</span>
-                  <span className="time-label">Time Remaining</span>
-                </div>
-
-                {/* Devices */}
+                {/* Devices (Made Bigger) */}
                 <div className="devices-mini-grid">
                   {session.devices.map((dev, i) => (
                     <div key={i} className={`device-tag ${dev.type}`}>
-                      <DeviceIcon type={dev.type} />
+                      <DeviceIcon type={dev.type} size={14} />
                       <span style={{ textTransform: 'uppercase' }}>
                         {dev.type} {dev.id ? `#${dev.id}` : ''}
                       </span>

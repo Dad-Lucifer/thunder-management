@@ -8,16 +8,16 @@ export const isHappyHourTime = (date: Date = new Date()): boolean => {
 
     const isWeekend = day === 0 || day === 6;
 
-    // Mon–Fri: 9:00 AM – 2:00 PM
+    // Mon–Fri: 9:00 AM – 1:45 PM
     if (!isWeekend) {
-        if (hours < 14) return true;
-        if (hours === 14) return minutes === 0;
+        if (hours < 13) return true;
+        if (hours === 13) return minutes < 45;
         return false;
     }
 
-    // Sat–Sun: 9:00 AM – 12:00 PM
-    if (hours < 12) return true;
-    if (hours === 12) return minutes === 0;
+    // Sat–Sun: 9:00 AM – 11:45 AM
+    if (hours < 11) return true;
+    if (hours === 11) return minutes < 45;
 
     return false;
 };
@@ -25,35 +25,35 @@ export const isHappyHourTime = (date: Date = new Date()): boolean => {
 
 export const isFunNightTime = (date: Date = new Date()): boolean => {
     const hours = date.getHours();
-    // 9:00 PM (21:00) to 6:00 AM
-    return hours >= 21 || hours < 6;
+    const minutes = date.getMinutes();
+    // 8:45 PM (20:45) to 6:00 AM
+    return hours > 20 || (hours === 20 && minutes >= 45) || hours < 6;
 };
 
 
 export const isNormalHourTime = (date: Date = new Date()): boolean => {
     // Normal Hours:
-    // Monday – Friday: 2:01 PM – 9:00 PM (14:01 - 21:00)
-    // Saturday – Sunday: 12:01 PM – 9:00 PM (12:01 - 21:00)
+    // Monday – Friday: 1:45 PM – 8:45 PM (13:45 - 20:45)
+    // Saturday – Sunday: 11:45 AM – 8:45 PM (11:45 - 20:45)
 
     const day = date.getDay(); // 0 is Sunday, 6 is Saturday
     const hours = date.getHours();
     const minutes = date.getMinutes();
 
-    // Check if it's past 9 PM (Fun Night takes over)
-    if (hours >= 21) return false;
+    // Check if it's past 8:45 PM (Fun Night takes over)
+    if (hours > 20 || (hours === 20 && minutes >= 45)) return false;
 
     const isWeekend = day === 0 || day === 6;
 
     if (isWeekend) {
-        // 12:01 PM - 9:00 PM
-        if (hours === 12) return minutes >= 1;
-        return hours >= 12;
+        // 11:45 AM - 8:45 PM
+        if (hours === 11) return minutes >= 45;
+        return hours > 11;
     } else {
-        // Mon-Fri: 2:01 PM - 9:00 PM
-        if (hours === 14) return minutes >= 1;
-        return hours >= 14;
+        // Mon-Fri: 1:45 PM - 8:45 PM
+        if (hours === 13) return minutes >= 45;
+        return hours > 13;
     }
-    return false;
 };
 
 export const calculateSessionPrice = (
@@ -132,10 +132,21 @@ export const calculateSessionPrice = (
     const getVRPrice = (pCount: number) => {
         if (pCount === 0) return 0;
         let rate = 0;
-        if (durationMinutes <= 15) rate = 50;
-        else if (durationMinutes <= 30) rate = 100;
-        else if (durationMinutes <= 60) rate = 180;
-        else rate = (durationMinutes / 60) * 180;
+
+        // Count full 60-minute blocks
+        const fullHours = Math.floor(durationMinutes / 60);
+        rate += fullHours * 180;
+
+        // Charge for remaining minutes
+        const remainingMinutes = durationMinutes % 60;
+        if (remainingMinutes > 0 && remainingMinutes <= 15) {
+            rate += 50;
+        } else if (remainingMinutes > 15 && remainingMinutes <= 30) {
+            rate += 100;
+        } else if (remainingMinutes > 30 && remainingMinutes < 60) {
+            rate += 180;
+        }
+
         return rate * pCount;
     };
 

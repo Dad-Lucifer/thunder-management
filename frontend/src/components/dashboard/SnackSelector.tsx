@@ -186,13 +186,23 @@ const SnackSelector: React.FC<Props> = ({ onChange }) => {
                   onClick={() => !isOutOfStock && updateQuantity(item.id, 1)}
                   style={{ pointerEvents: isOutOfStock ? 'none' : 'auto' }}
                 >
+                  {/* Unique Top Badge for Stock */}
+                  {isOutOfStock && (
+                    <div style={{ position: 'absolute', top: '2px', right: '2px', background: '#ef4444', color: '#fff', fontSize: '0.65rem', fontWeight: 800, padding: '4px 10px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Sold Out
+                    </div>
+                  )}
+                  {!isOutOfStock && (item.quantity || 0) <= 5 && (
+                    <div style={{ position: 'absolute', top: '2px', right: '2px', background: '#f59e0b', color: '#fff', fontSize: '0.7rem', fontWeight: 800, padding: '4px 10px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.4)' }}>
+                      🔥 Only {item.quantity} left
+                    </div>
+                  )}
+
                   <div className="snack-emoji">{item.emoji}</div>
 
                   <div className="snack-details">
                     <span className="snack-name">{item.name}</span>
                     <span className="snack-price">₹{item.price}</span>
-                    {isOutOfStock && <span style={{ fontSize: '0.7em', color: '#ef4444' }}>Out of Stock</span>}
-                    {!isOutOfStock && (item.quantity || 0) < 5 && <span style={{ fontSize: '0.7em', color: '#f59e0b' }}>{item.quantity} Left</span>}
                   </div>
 
                   {qty > 0 ? (

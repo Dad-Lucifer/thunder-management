@@ -9,23 +9,24 @@ const isHappyHourTime = (date = new Date()) => {
 
     const isWeekend = day === 0 || day === 6;
 
-    // Mon–Fri: 9:00 AM – 2:00 PM
+    // Mon–Fri: 9:00 AM – 1:45 PM
     if (!isWeekend) {
-        if (hours < 14) return true;
-        if (hours === 14) return minutes === 0;
+        if (hours < 13) return true;
+        if (hours === 13) return minutes < 45;
         return false;
     }
 
-    // Sat–Sun: 9:00 AM – 12:00 PM
-    if (hours < 12) return true;
-    if (hours === 12) return minutes === 0;
+    // Sat–Sun: 9:00 AM – 11:45 AM
+    if (hours < 11) return true;
+    if (hours === 11) return minutes < 45;
 
     return false;
 };
 
 const isFunNightTime = (date = new Date()) => {
     const hours = date.getHours();
-    return hours >= 21 || hours < 6;
+    const minutes = date.getMinutes();
+    return hours > 20 || (hours === 20 && minutes >= 45) || hours < 6;
 };
 
 const isNormalHourTime = (date = new Date()) => {
@@ -33,16 +34,16 @@ const isNormalHourTime = (date = new Date()) => {
     const hours = date.getHours();
     const minutes = date.getMinutes();
 
-    if (hours >= 21) return false;
+    if (hours > 20 || (hours === 20 && minutes >= 45)) return false;
 
     const isWeekend = day === 0 || day === 6;
 
     if (isWeekend) {
-        if (hours === 12) return minutes >= 1;
-        return hours > 12;
+        if (hours === 11) return minutes >= 45;
+        return hours > 11;
     } else {
-        if (hours === 14) return minutes >= 1;
-        return hours > 14;
+        if (hours === 13) return minutes >= 45;
+        return hours > 13;
     }
 };
 
@@ -292,106 +293,106 @@ const calculateSessionPrice = (
 };
 
 const calculateRevenueByMachine = (
-  durationHours,
-  peopleCount,
-  devices,
-  startTime = new Date()
+    durationHours,
+    peopleCount,
+    devices,
+    startTime = new Date()
 ) => {
-  const revenue = {
-    ps: 0,
-    pc: 0,
-    vr: 0,
-    wheel: 0,
-    metabat: 0
-  };
+    const revenue = {
+        ps: 0,
+        pc: 0,
+        vr: 0,
+        wheel: 0,
+        metabat: 0
+    };
 
-  const durationMinutes = durationHours * 60;
+    const durationMinutes = durationHours * 60;
 
-  const getIds = (val) =>
-    Array.isArray(val)
-      ? val
-      : typeof val === 'number' && val > 0
-      ? [val]
-      : [];
+    const getIds = (val) =>
+        Array.isArray(val)
+            ? val
+            : typeof val === 'number' && val > 0
+                ? [val]
+                : [];
 
-  const ps = getIds(devices.ps);
-  const pc = getIds(devices.pc);
-  const vr = getIds(devices.vr);
-  const wheel = getIds(devices.wheel);
-  const meta = getIds(devices.metabat);
+    const ps = getIds(devices.ps);
+    const pc = getIds(devices.pc);
+    const vr = getIds(devices.vr);
+    const wheel = getIds(devices.wheel);
+    const meta = getIds(devices.metabat);
 
-  // -----------------------
-  // VR & METABAT (FLAT)
-  // -----------------------
-  const vrRate =
-    durationMinutes <= 15 ? 50 :
-    durationMinutes <= 30 ? 100 :
-    durationMinutes <= 60 ? 180 :
-    (durationMinutes / 60) * 180;
+    // -----------------------
+    // VR & METABAT (FLAT)
+    // -----------------------
+    const vrRate =
+        durationMinutes <= 15 ? 50 :
+            durationMinutes <= 30 ? 100 :
+                durationMinutes <= 60 ? 180 :
+                    (durationMinutes / 60) * 180;
 
-  revenue.vr += vr.length * vrRate;
-  revenue.metabat += meta.length * vrRate;
+    revenue.vr += vr.length * vrRate;
+    revenue.metabat += meta.length * vrRate;
 
-  const isHappy = isHappyHourTime(startTime);
-  const isNormal = isNormalHourTime(startTime);
-  const isFun = isFunNightTime(startTime);
+    const isHappy = isHappyHourTime(startTime);
+    const isNormal = isNormalHourTime(startTime);
+    const isFun = isFunNightTime(startTime);
 
-  // -----------------------
-  // PC
-  // -----------------------
-  if (pc.length > 0) {
-    let pcCost = 0;
+    // -----------------------
+    // PC
+    // -----------------------
+    if (pc.length > 0) {
+        let pcCost = 0;
 
-    if (isHappy) {
-      pcCost =
-        durationMinutes <= 30
-          ? 40
-          : 50 + Math.ceil(Math.max(0, durationMinutes - 60) / 30) * 30;
-    } else if (isNormal) {
-      pcCost =
-        durationHours > 3
-          ? 50 * durationHours
-          : 60 + Math.ceil(Math.max(0, durationMinutes - 60) / 30) * 40;
-    } else if (isFun) {
-      pcCost =
-        durationHours > 3
-          ? 50 * durationHours
-          : 50 + Math.ceil(Math.max(0, durationMinutes - 60) / 30) * 30;
+        if (isHappy) {
+            pcCost =
+                durationMinutes <= 30
+                    ? 40
+                    : 50 + Math.ceil(Math.max(0, durationMinutes - 60) / 30) * 30;
+        } else if (isNormal) {
+            pcCost =
+                durationHours > 3
+                    ? 50 * durationHours
+                    : 60 + Math.ceil(Math.max(0, durationMinutes - 60) / 30) * 40;
+        } else if (isFun) {
+            pcCost =
+                durationHours > 3
+                    ? 50 * durationHours
+                    : 50 + Math.ceil(Math.max(0, durationMinutes - 60) / 30) * 30;
+        }
+
+        revenue.pc += pcCost * pc.length;
     }
 
-    revenue.pc += pcCost * pc.length;
-  }
+    // -----------------------
+    // WHEEL
+    // -----------------------
+    if (wheel.length > 0) {
+        let wheelCost = 0;
 
-  // -----------------------
-  // WHEEL
-  // -----------------------
-  if (wheel.length > 0) {
-    let wheelCost = 0;
+        if (durationMinutes <= 30) {
+            wheelCost = isHappy ? 80 : 90;
+        } else {
+            wheelCost = isHappy
+                ? 120 + Math.ceil(Math.max(0, durationMinutes - 60) / 30) * 60
+                : 150 + Math.ceil(Math.max(0, durationMinutes - 60) / 30) * 75;
+        }
 
-    if (durationMinutes <= 30) {
-      wheelCost = isHappy ? 80 : 90;
-    } else {
-      wheelCost = isHappy
-        ? 120 + Math.ceil(Math.max(0, durationMinutes - 60) / 30) * 60
-        : 150 + Math.ceil(Math.max(0, durationMinutes - 60) / 30) * 75;
+        revenue.wheel += wheelCost * wheel.length;
     }
 
-    revenue.wheel += wheelCost * wheel.length;
-  }
+    // -----------------------
+    // PS (base allocation)
+    // -----------------------
+    if (ps.length > 0) {
+        const base =
+            isHappy ? 90 :
+                isNormal ? 140 :
+                    100;
 
-  // -----------------------
-  // PS (base allocation)
-  // -----------------------
-  if (ps.length > 0) {
-    const base =
-      isHappy ? 90 :
-      isNormal ? 140 :
-      100;
+        revenue.ps += base * ps.length;
+    }
 
-    revenue.ps += base * ps.length;
-  }
-
-  return revenue;
+    return revenue;
 };
 
 

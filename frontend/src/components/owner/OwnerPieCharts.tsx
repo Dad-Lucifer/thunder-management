@@ -76,7 +76,7 @@ const renderActiveShape = (props: any) => {
             <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={fill} fill="none" />
             <circle cx={ex} cy={ey} r={2} fill={fill} stroke="none" />
             <text x={ex + (cos >= 0 ? 1 : -1) * 12} y={ey} textAnchor={textAnchor} fill="#cbd5e1" fontSize={12} >
-                {`₹${value.toLocaleString()}`}
+                {`₹${(value || 0).toLocaleString()}`}
             </text>
             <text x={ex + (cos >= 0 ? 1 : -1) * 12} y={ey} dy={18} textAnchor={textAnchor} fill="#94a3b8" fontSize={10}>
                 {`(${(percent * 100).toFixed(1)}%)`}
@@ -231,7 +231,7 @@ const OwnerPieCharts: React.FC<Props> = ({ timeFilter }) => {
                                         </span>
                                     </div>
                                     <div className="text-right">
-                                        <div className="text-sm font-bold text-white">₹{entry.value.toLocaleString()}</div>
+                                        <div className="text-sm font-bold text-white">₹{(entry.value || 0).toLocaleString()}</div>
                                         <div className="text-xs text-slate-400">{totalRevenue > 0 ? ((entry.value / totalRevenue) * 100).toFixed(1) : 0}%</div>
                                     </div>
                                 </motion.div>

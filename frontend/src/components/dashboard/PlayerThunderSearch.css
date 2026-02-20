@@ -101,7 +101,7 @@
     position: relative;
 }
 
-.modal-input {
+.modal-inputs {
     width: 100%;
     padding: 16px 20px;
     padding-left: 50px;
@@ -115,14 +115,14 @@
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.modal-input:focus {
+.modal-inputs:focus {
     outline: none;
     border-color: #fbbf24;
     background: rgba(0, 0, 0, 0.6);
     box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.1);
 }
 
-.modal-input::placeholder {
+.modal-inputs::placeholder {
     color: rgba(255, 255, 255, 0.3);
 }
 

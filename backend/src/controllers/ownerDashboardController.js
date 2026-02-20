@@ -247,9 +247,38 @@ const getRevenueByMachine = async (req, res) => {
 
 
 
+// ... existing exports
+/**
+ * ======================================================
+ * 🗑️ DELETION LOGS
+ * ======================================================
+ */
+const getDeletionLogs = async (req, res) => {
+  try {
+    const { range = 'today' } = req.query;
+    const startDate = getStartDate(range);
+
+    const snapshot = await db.collection('deletion_logs')
+      .where('deletedAt', '>=', startDate.toISOString())
+      .orderBy('deletedAt', 'desc')
+      .get();
+
+    const logs = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    res.json(logs);
+  } catch (err) {
+    console.error('❌ deletion logs error:', err);
+    res.status(500).json({ message: 'Deletion logs error' });
+  }
+};
+
 module.exports = {
   getOwnerDashboardStats,
   getRevenueFlow,
   getRecentTransactions,
-  getRevenueByMachine
+  getRevenueByMachine,
+  getDeletionLogs
 };

@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react';
-
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -29,7 +28,10 @@ interface Props {
 }
 
 const PlayersBattleModal = ({ isOpen, onClose }: Props) => {
-    // --- State ---
+    const isSelectingP1 = React.useRef(false);
+    const isSelectingP2 = React.useRef(false);
+
+    // --- State: Match Config ---
     const [crownHolder, setCrownHolder] = useState<PlayerInfo>({ name: '', phone: '', errors: {} });
     const [challenger, setChallenger] = useState<PlayerInfo>({ name: '', phone: '', errors: {} });
     const [searchResultsP1, setSearchResultsP1] = useState<{ name: string, phone: string }[]>([]);
@@ -40,7 +42,6 @@ const PlayersBattleModal = ({ isOpen, onClose }: Props) => {
 
     const [isSearchingP1, setIsSearchingP1] = useState(false);
     const [isSearchingP2, setIsSearchingP2] = useState(false);
-
 
     // Config State
     const [config, setConfig] = useState<BattleConfig>({
@@ -117,6 +118,11 @@ const PlayersBattleModal = ({ isOpen, onClose }: Props) => {
             return;
         }
 
+        if (isSelectingP1.current) {
+            isSelectingP1.current = false;
+            return;
+        }
+
         let cancel = false;
 
         const timer = setTimeout(async () => {
@@ -124,7 +130,7 @@ const PlayersBattleModal = ({ isOpen, onClose }: Props) => {
                 setIsSearchingP1(true);
 
                 const res = await axios.get(
-                    "https://thunder-management.onrender.com/api/customers/search",
+                    "/api/customers/search",
                     { params: { name: crownHolder.name.trim() } }
                 );
 
@@ -151,6 +157,11 @@ const PlayersBattleModal = ({ isOpen, onClose }: Props) => {
             return;
         }
 
+        if (isSelectingP2.current) {
+            isSelectingP2.current = false;
+            return;
+        }
+
         let cancel = false;
 
         const timer = setTimeout(async () => {
@@ -158,7 +169,7 @@ const PlayersBattleModal = ({ isOpen, onClose }: Props) => {
                 setIsSearchingP2(true);
 
                 const res = await axios.get(
-                    "https://thunder-management.onrender.com/api/customers/search",
+                    "/api/customers/search",
                     { params: { name: challenger.name.trim() } }
                 );
 
@@ -177,7 +188,9 @@ const PlayersBattleModal = ({ isOpen, onClose }: Props) => {
         return () => { cancel = true; clearTimeout(timer); };
 
     }, [challenger.name]);
+
     const selectPlayer1 = (c: { name: string, phone: string }) => {
+        isSelectingP1.current = true;
         setCrownHolder(prev => ({
             ...prev,
             name: c.name,
@@ -188,6 +201,7 @@ const PlayersBattleModal = ({ isOpen, onClose }: Props) => {
     };
 
     const selectPlayer2 = (c: { name: string, phone: string }) => {
+        isSelectingP2.current = true;
         setChallenger(prev => ({
             ...prev,
             name: c.name,
@@ -196,7 +210,6 @@ const PlayersBattleModal = ({ isOpen, onClose }: Props) => {
         }));
         setShowDropdownP2(false);
     };
-
 
     // Config Handlers
     const handleConfigChange = (field: keyof BattleConfig, value: any) => {
@@ -346,7 +359,6 @@ const PlayersBattleModal = ({ isOpen, onClose }: Props) => {
                                     {crownHolder.errors.name && <span className="input-error-msg">{crownHolder.errors.name}</span>}
                                 </div>
 
-
                                 <div className="input-group">
                                     <label className="input-label">Phone Number</label>
                                     <input
@@ -375,7 +387,7 @@ const PlayersBattleModal = ({ isOpen, onClose }: Props) => {
                             </div>
 
                             {/* VS Divider */}
-                            <div className="vs-divider">
+                            <div className="vs">
                                 VS
                             </div>
 
@@ -411,7 +423,6 @@ const PlayersBattleModal = ({ isOpen, onClose }: Props) => {
 
                                     {challenger.errors.name && <span className="input-error-msg">{challenger.errors.name}</span>}
                                 </div>
-
 
                                 <div className="input-group">
                                     <label className="input-label">Phone Number</label>

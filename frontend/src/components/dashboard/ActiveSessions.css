@@ -294,6 +294,49 @@
     box-shadow: 0 0 15px #ef4444, 0 0 5px #fff;
 }
 
+/* Unpaid Finished State - Black & White Glow Pulse */
+.session-card-premium.unpaid-finished {
+    filter: grayscale(1);
+    border-color: #fff;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
+    animation: breath-in 3s ease-in-out infinite;
+    background: rgba(0, 0, 0, 0.9);
+}
+
+@keyframes breath-in {
+
+    0%,
+    100% {
+        box-shadow: 0 0 15px rgba(255, 255, 255, 0.2), inset 0 0 5px rgba(255, 255, 255, 0.1);
+    }
+
+    50% {
+        box-shadow: 0 0 35px rgba(255, 255, 255, 0.6), inset 0 0 15px rgba(255, 255, 255, 0.3);
+    }
+}
+
+.session-card-premium.unpaid-finished:hover {
+    transform: translateY(-8px) scale(1.02);
+    border-color: #fff;
+    box-shadow:
+        0 20px 40px -10px rgba(0, 0, 0, 0.8),
+        0 0 30px rgba(255, 255, 255, 0.5);
+    filter: grayscale(0.5);
+    /* Reduce grayscale slightly on hover for better visibility */
+}
+
+.session-card-premium.unpaid-finished .user-avatar-glow {
+    background: #333;
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+    color: #fff;
+}
+
+.session-card-premium.unpaid-finished .progress-bar {
+    background: #fff;
+    box-shadow: 0 0 15px #fff;
+}
+
+
 /* Empty State */
 .empty-state {
     text-align: center;

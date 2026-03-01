@@ -115,10 +115,10 @@ const ActiveSessions = () => {
         const end = start + totalDurationMs;
         const remaining = end - now;
 
-        // If time is up by more than 30 seconds (-30000ms)
-        if (remaining < -30000 && !processingRef.has(session.id)) {
+        // If time is up by more than 30 seconds (-30000ms) AND it is fully paid
+        if (remaining < -30000 && (session.remainingAmount || 0) <= 0 && !processingRef.has(session.id)) {
           processingRef.add(session.id);
-          console.log(`Auto-completing session ${session.id} because time is up > 30s`);
+          console.log(`Auto-completing session ${session.id} because time is up > 30s and fully paid`);
 
           axios.post(`https://thunder-management.onrender.com/api/sessions/complete/${session.id}`)
             .then(() => {
@@ -173,8 +173,9 @@ const ActiveSessions = () => {
 
     const progress = Math.min(100, Math.max(0, (elapsed / totalDurationMs) * 100));
     const isUrgent = remaining < 10 * 60 * 1000 && remaining > 0;
+    const isUnpaidFinished = remaining <= 0 && (session.remainingAmount || 0) > 0;
 
-    return { progress, isUrgent, timeText, remaining };
+    return { progress, isUrgent, isUnpaidFinished, timeText, remaining };
   };
 
   const getInitials = (name: string) => {
@@ -213,13 +214,13 @@ const ActiveSessions = () => {
         )}
 
         {!loading && sessions.map((session) => {
-          const { progress, isUrgent } = getSessionDetails(session);
+          const { progress, isUrgent, isUnpaidFinished } = getSessionDetails(session);
           const startTime = new Date(session.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
           return (
             <div
               key={session.id}
-              className={`session-card-premium ${isUrgent ? 'urgent' : ''}`}
+              className={`session-card-premium ${isUrgent ? 'urgent' : ''} ${isUnpaidFinished ? 'unpaid-finished' : ''}`}
               onClick={() => setSelectedSession(session)}
             >
               {/* Top Stripe - REMOVED for Neon Look */}

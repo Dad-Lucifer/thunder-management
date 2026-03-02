@@ -149,7 +149,7 @@ const createSession = async (req, res) => {
             duration: durationVal,
             peopleCount: peopleVal,
             gameName,
-            snacks: snacks || '',
+            snacks: snackDetails || snacks || [],
             devices: devicesVal, // Store as is (arrays)
             price: finalPrice,
             paidAmount: 0,
@@ -234,6 +234,7 @@ const getActiveSessions = async (req, res) => {
                 startTime: data.startTime,   // ISO string
                 duration: data.duration,     // hours
                 peopleCount: data.peopleCount,
+                snacks: Array.isArray(data.snacks) ? data.snacks : [],
                 price: data.price,
                 gameName: data.gameName,
                 paidAmount: data.paidAmount || 0,
@@ -512,12 +513,12 @@ const getDeviceAvailabilityForTime = async (req, res) => {
 const updateSession = async (req, res) => {
     try {
         const { id } = req.params;
-        const { extraTime, extraPrice, newMember, paidNow, payingPeopleNow, snacks, paymentMode, cashCount, onlineCount, addedPeopleCorrection } = req.body;
+        const { extraTime, extraPrice, newMember, paidNow, payingPeopleNow, snacks, paymentMode, cashCount, onlineCount, addedPeopleCorrection, returnedSnacks  } = req.body;
+
+        
 
         // Deduct snacks for update
-        if (snacks && Array.isArray(snacks) && snacks.length > 0) {
-            await snackService.deductStock(snacks);
-        }
+
 
         const ref = db.collection('sessions').doc(id);
         const snap = await ref.get();
@@ -527,6 +528,43 @@ const updateSession = async (req, res) => {
         }
 
         const data = snap.data();
+
+               // Merge old snacks + new snacks
+const existingSnacks = data.snacks || [];
+
+let updatedSnacks = [...existingSnacks];
+
+if (snacks && Array.isArray(snacks) && snacks.length > 0) {
+    snacks.forEach(newSnack => {
+        const existing = updatedSnacks.find(s => s.name === newSnack.name);
+
+        if (existing) {
+            existing.quantity += newSnack.quantity;
+        } else {
+            updatedSnacks.push({
+                name: newSnack.name,
+                quantity: newSnack.quantity
+            });
+        }
+    });
+}
+if (returnedSnacks && Array.isArray(returnedSnacks) && returnedSnacks.length > 0) {
+
+    returnedSnacks.forEach(returned => {
+
+        const existing = updatedSnacks.find(s => s.name === returned.name);
+
+        if (existing) {
+            existing.quantity -= returned.quantity;
+
+            if (existing.quantity <= 0) {
+                updatedSnacks = updatedSnacks.filter(s => s.name !== returned.name);
+            }
+        }
+
+    });
+
+}
 
         // ---- Fixed split logic: Track actual amounts, not recalculate ----
         const totalPrice = data.price + (extraPrice || 0);
@@ -603,7 +641,7 @@ const updateSession = async (req, res) => {
             remainingPeople: finalRemainingPeople,
             remainingAmount,
             devices: updatedDevices,
-
+            snacks: updatedSnacks,
             // Update cash and online split totals
             cash: (data.cash || 0) + newCashAmount,
             online: (data.online || 0) + newOnlineAmount,

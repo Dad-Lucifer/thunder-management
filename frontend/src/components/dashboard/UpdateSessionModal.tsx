@@ -42,6 +42,10 @@ interface ActiveSession {
     paidAmount?: number;
     remainingPeople?: number;  // Changed from paidPeople
     remainingAmount?: number;
+     snacks?: {
+        name: string;
+        quantity: number;
+    }[];
     devices: { type: string; id: number | null }[]; // Updated structure
 }
 
@@ -67,6 +71,8 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
 
     const [customPayAmount, setCustomPayAmount] = useState<number | ''>('');
     const [paymentMode, setPaymentMode] = useState<'equal' | 'custom'>('equal');
+    const [snackPrices, setSnackPrices] = useState<Record<string, number>>({});
+    const [returnedSnacks, setReturnedSnacks] = useState<{name:string, quantity:number}[]>([]);
 
     // Derived total people paying now
     const payingNow = paymentMode === 'equal' ? payingNowCount : 1;
@@ -90,6 +96,25 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
             .then(res => setAvailability(res.data))
             .catch(err => console.error("Failed to fetch availability", err));
     }, []);
+    useEffect(() => {
+    const fetchSnackPrices = async () => {
+        try {
+            const res = await api.get('/api/snacks');
+            
+            const priceMap: Record<string, number> = {};
+
+            res.data.forEach((snack: any) => {
+                priceMap[snack.name] = snack.sellingPrice;
+            });
+
+            setSnackPrices(priceMap);
+        } catch (err) {
+            console.error("Failed to load snack prices", err);
+        }
+    };
+
+    fetchSnackPrices();
+}, []);
 
     // Auto-close safety for modal if session expires while open
     useEffect(() => {
@@ -118,8 +143,7 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
 
     // Feature 3: Snacks (Dynamic)
     const [newSnackCost, setNewSnackCost] = useState(0);
-    const [newSnackItems, setNewSnackItems] = useState<{ name: string; quantity: number }[]>([]);
-
+const [newSnackItems, setNewSnackItems] = useState<{ name: string; quantity: number }[]>([]);
     // ------------------- Calculations -------------------
 
     // Convert session.devices array ({ type, id }) to map for logic (Record<string, number[]>)
@@ -147,6 +171,10 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
 
     // ------------------- Calculations -------------------
 
+    const returnedSnackPrice = returnedSnacks.reduce((total, returned) => {
+    const price = snackPrices[returned.name] || 0;
+    return total + (price * returned.quantity);
+}, 0);
     // Correction Logic: Recalculate what the ORIGINAL price should have been with corrected people
     const baseOriginalCalculatedPrice = calculateSessionPrice(
         session.duration || 0,
@@ -207,7 +235,12 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
     const extraTimeCost = Math.max(0, recalculatedNewTotal - recalculatedOldTotal);
 
     /* ---------- STEP 4: FINAL NEW CHARGES ---------- */
-    const chargesAsString = corePriceCorrectionDelta + joinCost + extraTimeCost + newSnackCost;
+    const chargesAsString =
+    corePriceCorrectionDelta +
+    joinCost +
+    extraTimeCost +
+    newSnackCost -
+    returnedSnackPrice;
 
     /* ---------- TOTAL SESSION VALUE AFTER UPDATE ---------- */
     const totalToPay = originalStoredTotal + chargesAsString;
@@ -312,10 +345,11 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
 
             const payload = {
                 extraTime: extraHours,
-                extraPrice: charges + newSnackCost,
+                extraPrice: charges + newSnackCost - returnedSnackPrice,
                 newMember: memberCount > 0 ? newMember : null,
                 addedPeopleCorrection: correctionPeople,
                 snacks: newSnackItems,
+                returnedSnacks,
                 paidNow: payNowAmount,
                 payingPeopleNow: paymentMode === 'equal' ? payingNow : 1,
                 paymentMode,
@@ -368,27 +402,95 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
 
                             {/* Edit Session Correction */}
                             {isEditMode && (
-                                <div className="edit-correction-section">
-                                    <div className="section-title-sm">
-                                        <FaTools /> Session Override & Corrections
-                                    </div>
-                                    <div className="item-grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem' }}>
-                                        <div className="input-group">
-                                            <label className="input-label">Correct Original People Count</label>
-                                            <div className="minimal-counter" style={{ padding: '0.75rem', marginBottom: 0, maxWidth: '200px' }}>
-                                                <button className="counter-btn" style={{ width: '32px', height: '32px' }} onClick={() => setCorrectedPeopleCount(p => Math.max(1, p - 1))}>
-                                                    <FaMinus size={10} />
-                                                </button>
-                                                <div className="counter-value" style={{ fontSize: '1.5rem' }}>{correctedPeopleCount}</div>
-                                                <button className="counter-btn" style={{ width: '32px', height: '32px' }} onClick={() => setCorrectedPeopleCount(p => p + 1)}>
-                                                    <FaPlus size={10} />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
 
+<div className="edit-correction-section">
+
+{Array.isArray(session.snacks) && session.snacks.length > 0 && (
+
+<section>
+<h3>Returned Snacks</h3>
+
+{session.snacks.map((snack:any, index:number)=>(
+<div key={index} style={{display:"flex",justifyContent:"space-between",marginBottom:"8px"}}>
+
+<span>{snack.name}</span>
+
+<div style={{display:"flex",alignItems:"center",gap:"8px"}}>
+
+<button
+onClick={()=>{
+setReturnedSnacks(prev=>{
+const existing = prev.find(s=>s.name===snack.name)
+if(existing){
+return prev.map(s=>s.name===snack.name?{...s,quantity:Math.max(0,s.quantity-1)}:s)
+}
+return prev
+})
+}}
+>-</button>
+
+<span>
+{returnedSnacks.find(s=>s.name===snack.name)?.quantity || 0}
+</span>
+
+<button
+onClick={()=>{
+setReturnedSnacks(prev=>{
+const existing = prev.find(s=>s.name===snack.name)
+
+if(existing){
+return prev.map(s=>s.name===snack.name?{...s,quantity:Math.min(snack.quantity,s.quantity+1)}:s)
+}
+
+return [...prev,{name:snack.name,quantity:1}]
+})
+}}
+>+</button>
+
+</div>
+
+</div>
+))}
+
+</section>
+
+)}
+
+<div className="section-title-sm">
+<FaTools /> Session Override & Corrections
+</div>
+
+<div className="item-grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem' }}>
+<div className="input-group">
+
+<label className="input-label">Correct Original People Count</label>
+
+<div className="minimal-counter" style={{ padding: '0.75rem', marginBottom: 0, maxWidth: '200px' }}>
+
+<button className="counter-btn"
+onClick={() => setCorrectedPeopleCount(p => Math.max(1, p - 1))}
+>
+<FaMinus size={10} />
+</button>
+
+<div className="counter-value" style={{ fontSize: '1.5rem' }}>
+{correctedPeopleCount}
+</div>
+
+<button className="counter-btn"
+onClick={() => setCorrectedPeopleCount(p => p + 1)}
+>
+<FaPlus size={10} />
+</button>
+
+</div>
+
+</div>
+</div>
+
+</div>
+
+)}
                             <section>
                                 <h3 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-subtle)' }}>
                                     <FaClock style={{ display: 'inline', marginRight: '6px' }} /> Update Time

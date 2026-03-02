@@ -41,6 +41,7 @@ interface ActiveSession {
   price: number;
   paidAmount?: number;
   remainingAmount?: number;
+  snacks: {name: string, quantity: number}[];
 
   devices: { type: 'ps' | 'pc' | 'vr' | 'wheel' | 'metabat'; id: number | null }[];
   status: string;

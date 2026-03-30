@@ -37,11 +37,19 @@ interface OwnerDashboardData {
         id: string;
         item: string;
         amount: number;
-        status: string;
+        status: 'active' | 'completed';
         time: string;
     }>;
     revenueByMachine: Array<{ name: string; value: number }>;
-    deletionLogs: Array<{ id: string; [key: string]: any }>;
+    deletionLogs: Array<{
+        id: string;
+        source: string;
+        customerName: string;
+        deletedBy: string;
+        deletedByName: string;
+        deletedAt: string;
+        details: any;
+    }>;
 }
 
 const OwnerDashboard: React.FC = () => {
@@ -64,16 +72,32 @@ const OwnerDashboard: React.FC = () => {
         return () => clearInterval(interval);
     }, []);
 
-    // Fetch dashboard data
+    // Fetch dashboard data (with 10-min sessionStorage cache)
     useEffect(() => {
+        const CACHE_TTL = 10 * 60 * 1000; // 10 minutes in ms
+
         const fetchDashboardData = async () => {
             setLoading(true);
             const range = timeFilter.toLowerCase().replace(' ', '');
+            const cacheKey = `ownerDashboard_${range}`;
 
             try {
+                // --- Check cache ---
+                const cached = sessionStorage.getItem(cacheKey);
+                if (cached) {
+                    const { data, timestamp } = JSON.parse(cached);
+                    if (Date.now() - timestamp < CACHE_TTL) {
+                        setDashboardData(data);
+                        setLoading(false);
+                        return;
+                    }
+                }
+
+                // --- Cache miss / stale: fetch from API ---
                 const res = await fetch(`/api/owner/dashboard?range=${range}`);
                 const data = await res.json();
                 setDashboardData(data);
+                sessionStorage.setItem(cacheKey, JSON.stringify({ data, timestamp: Date.now() }));
 
             } catch (err) {
                 console.error('❌ Dashboard data fetch failed:', err);

@@ -108,10 +108,26 @@ const Analytics: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'overview' | 'devices' | 'food' | 'community'>('overview');
 
     useEffect(() => {
+        const CACHE_TTL = 10 * 60 * 1000; // 10 minutes in ms
+        const CACHE_KEY = 'analytics_dashboard';
+
         const fetchStats = async () => {
             try {
+                // --- Check cache ---
+                const cached = sessionStorage.getItem(CACHE_KEY);
+                if (cached) {
+                    const { data, timestamp } = JSON.parse(cached);
+                    if (Date.now() - timestamp < CACHE_TTL) {
+                        setDashboardData(data);
+                        setLoading(false);
+                        return;
+                    }
+                }
+
+                // --- Cache miss / stale: fetch from API ---
                 const res = await api.get('/api/analytics/dashboard');
                 setDashboardData(res.data);
+                sessionStorage.setItem(CACHE_KEY, JSON.stringify({ data: res.data, timestamp: Date.now() }));
             } catch (err) {
                 console.error('Analytics fetch error', err);
             } finally {

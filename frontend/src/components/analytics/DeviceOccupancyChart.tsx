@@ -1,8 +1,7 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Sector } from 'recharts';
 import { motion } from 'framer-motion';
-import axios from 'axios';
 
 // Premium Color Palette
 const GOLD_COLOR = '#fbbf24'; // Amber-400
@@ -13,6 +12,17 @@ interface DataItem {
     name: string;
     value: number;
     color: string;
+}
+
+interface OccupancyData {
+    occupied: number;
+    remaining: number;
+    totalCapacity: number;
+}
+
+interface DeviceOccupancyChartProps {
+    data?: OccupancyData;
+    loading?: boolean;
 }
 
 const CustomTooltip = ({ active, payload }: any) => {
@@ -69,50 +79,22 @@ const renderActiveShape = (props: any) => {
     );
 };
 
-const DeviceOccupancyChart: React.FC = () => {
-    const [data, setData] = useState<DataItem[]>([
-        { name: 'Occupied', value: 0, color: GOLD_COLOR },
-        { name: 'Available', value: 0, color: EMPTY_COLOR }
-    ]);
-    const [, setLoading] = useState(true);
+const DeviceOccupancyChart: React.FC<DeviceOccupancyChartProps> = ({ data, loading: propLoading }) => {
     const [activeIndex, setActiveIndex] = useState(0);
 
-    useEffect(() => {
-        const fetchOccupancy = async () => {
-            try {
-                // Simulating fetch or real fetch
-                const res = await axios.get('https://thunder-management.onrender.com/api/analytics/deviceoccupancy');
+    const occupancyData = data || { occupied: 0, remaining: 0, totalCapacity: 0 };
+    
+    const chartData: DataItem[] = [
+        { name: 'Occupied', value: occupancyData.occupied || 0, color: GOLD_COLOR },
+        { name: 'Available', value: occupancyData.remaining || 0, color: BLUE_COLOR }
+    ];
 
-                // Assuming API returns { occupied: number, remaining: number }
-                // Use fallback values if API fails or returns 0 initially for visuals
-                const occupied = res.data.occupied || 0;
-                const remaining = res.data.remaining || 0;
-
-                setData([
-                    { name: 'Occupied', value: occupied, color: GOLD_COLOR },
-                    { name: 'Available', value: remaining, color: BLUE_COLOR } // Using Blue for available instead of faint for better contrast in "Blue & Golden" theme
-                ]);
-            } catch (error) {
-                console.error('Occupancy fetch error', error);
-                // Fallback demo data
-                setData([
-                    { name: 'Occupied', value: 12, color: GOLD_COLOR },
-                    { name: 'Available', value: 8, color: BLUE_COLOR }
-                ]);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchOccupancy();
-    }, []);
-
-    const total = data.reduce((acc, curr) => acc + curr.value, 0);
-    const occupiedCount = data.find(d => d.name === 'Occupied')?.value || 0;
+    const total = chartData.reduce((acc, curr) => acc + curr.value, 0);
+    const occupiedCount = chartData.find(d => d.name === 'Occupied')?.value || 0;
     const occupancyRate = total > 0 ? Math.round((occupiedCount / total) * 100) : 0;
 
     // Fallback for visual rendering if no data
-    const chartData = total > 0 ? data : [
+    const displayData = total > 0 ? chartData : [
         { name: 'Occupied', value: 0, color: GOLD_COLOR },
         { name: 'Available', value: 1, color: 'rgba(255,255,255,0.05)' }
     ];
@@ -176,7 +158,7 @@ const DeviceOccupancyChart: React.FC = () => {
                             {...({
                                 activeIndex: activeIndex,
                                 activeShape: renderActiveShape,
-                                data: chartData,
+                                data: displayData,
                                 cx: "50%",
                                 cy: "50%",
                                 innerRadius: 85,
@@ -188,7 +170,7 @@ const DeviceOccupancyChart: React.FC = () => {
                                 stroke: "none"
                             } as any)}
                         >
-                            {chartData.map((entry, index) => (
+                            {displayData.map((entry, index) => (
                                 <Cell
                                     key={`cell-${index}`}
                                     fill={entry.name === 'Occupied' ? 'url(#goldGradient)' : 'url(#blueGradient)'}
@@ -213,7 +195,7 @@ const DeviceOccupancyChart: React.FC = () => {
                 position: 'relative',
                 zIndex: 20
             }}>
-                {data.map((entry, index) => (
+                {chartData.map((entry, index) => (
                     <motion.div
                         key={entry.name}
                         initial={{ opacity: 0, y: 10 }}

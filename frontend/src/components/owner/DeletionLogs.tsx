@@ -1,17 +1,21 @@
-import React, { useEffect, useState } from 'react';
-import api from '../../utils/api';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaTrash, FaUserShield, FaUserTie, FaRedo, FaHistory } from 'react-icons/fa';
+import { FaTrash, FaUserShield, FaUserTie, FaHistory } from 'react-icons/fa';
 import './DeletionLogs.css';
 
 interface DeletionLog {
     id: string;
-    source: string; // 'Active Session' | 'Upcoming Booking'
+    source: string;
     customerName: string;
-    deletedBy: string; // 'Owner' | 'Employee'
+    deletedBy: string;
     deletedByName: string;
     deletedAt: string;
     details: any;
+}
+
+interface Props {
+    data?: DeletionLog[];
+    loading?: boolean;
 }
 
 const FILTERS = [
@@ -20,32 +24,10 @@ const FILTERS = [
     { label: 'This Month', value: 'thismonth' }
 ];
 
-const DeletionLogs: React.FC = () => {
-    const [logs, setLogs] = useState<DeletionLog[]>([]);
+const DeletionLogs: React.FC<Props> = ({ data = [], loading: propLoading = false }) => {
+    const logs = data;
     const [filter, setFilter] = useState('today');
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-
-    const fetchLogs = async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            // Simulate slight delay for better UX on fast networks
-            await new Promise(r => setTimeout(r, 400));
-            const res = await api.get(`/api/owner/logs?range=${filter}`);
-            setLogs(res.data);
-        } catch (err: any) {
-            console.error('Failed to fetch deletion logs', err);
-            // More descriptive error
-            setError('System audit service unavailable');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchLogs();
-    }, [filter]);
+    const loading = propLoading || data.length === 0;
 
     const getRoleIcon = (role: string) => {
         return role.toLowerCase() === 'owner' ? <FaUserShield className="text-purple-400" /> : <FaUserTie className="text-blue-400" />;
@@ -102,18 +84,6 @@ const DeletionLogs: React.FC = () => {
                                 <div className="dot"></div>
                             </div>
                             <span className="text-xs uppercase tracking-widest mt-4">Syncing Audit Trail...</span>
-                        </motion.div>
-                    ) : error ? (
-                        <motion.div
-                            key="error"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            className="logs-error"
-                        >
-                            <p className="error-msg">{error}</p>
-                            <button onClick={fetchLogs} className="retry-btn">
-                                <FaRedo /> Retry Connection
-                            </button>
                         </motion.div>
                     ) : logs.length === 0 ? (
                         <motion.div

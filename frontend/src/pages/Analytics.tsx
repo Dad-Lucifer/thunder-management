@@ -76,24 +76,46 @@ const ChartCard = ({ children, title, subtitle, icon, colSpan = 1 }: any) => (
     </motion.div>
 );
 
+interface DashboardData {
+    last24Hours: {
+        totalEntries: number;
+        mostPopularDevice: string;
+        topSnack: string;
+        peakHour: string;
+    };
+    deviceOccupancy: {
+        occupied: number;
+        remaining: number;
+        totalCapacity: number;
+    };
+    peakHours: Array<{ time: string; users: number }>;
+    deviceUsage: Array<{ name: string; usage: number }>;
+    snacksConsumption: Array<{ name: string; value: number }>;
+    monthlyGrowth: Array<{ day: string; lastMonth: number; thisMonth: number }>;
+}
+
 const Analytics: React.FC = () => {
-    const [stats, setStats] = useState({
+    const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    const stats = dashboardData?.last24Hours || {
         totalEntries: 0,
         mostPopularDevice: '—',
         topSnack: '—',
         peakHour: '—'
-    });
+    };
 
-    // Tabs state
     const [activeTab, setActiveTab] = useState<'overview' | 'devices' | 'food' | 'community'>('overview');
 
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                const res = await api.get('/api/analytics/last-24-hours');
-                setStats(res.data);
+                const res = await api.get('/api/analytics/dashboard');
+                setDashboardData(res.data);
             } catch (err) {
                 console.error('Analytics fetch error', err);
+            } finally {
+                setLoading(false);
             }
         };
 
@@ -199,15 +221,15 @@ const Analytics: React.FC = () => {
                             >
                                 {/* Growth Chart (Full Width) */}
                                 <ChartCard title="Sessions Growth" subtitle="Comparative analysis of session volume" icon={<FaChartLine />}>
-                                    <GrowthComparisonChart />
+                                    <GrowthComparisonChart data={dashboardData?.monthlyGrowth} loading={loading} />
                                 </ChartCard>
 
                                 <div className="charts-grid grid-cols-2" style={{ marginBottom: 0 }}>
                                     <ChartCard title="Peak Hours" subtitle="Activity heat map by time of day" icon={<FaClock />}>
-                                        <PeakHoursChart />
+                                        <PeakHoursChart data={dashboardData?.peakHours} loading={loading} />
                                     </ChartCard>
                                     <ChartCard title="Current Occupancy" subtitle="Real-time device utilization" icon={<FaChartPie />}>
-                                        <DeviceOccupancyChart />
+                                        <DeviceOccupancyChart data={dashboardData?.deviceOccupancy} loading={loading} />
                                     </ChartCard>
                                 </div>
                             </motion.div>
@@ -223,12 +245,11 @@ const Analytics: React.FC = () => {
                                 className="charts-grid grid-cols-2"
                             >
                                 <ChartCard title="Device Usage Trends" subtitle="Which consoles are playing the most?" icon={<FaGamepad />} colSpan={2}>
-                                    <DeviceUsageChart />
+                                    <DeviceUsageChart data={dashboardData?.deviceUsage} loading={loading} />
                                 </ChartCard>
                                 <ChartCard title="Occupancy Distribution" subtitle="Active sessions per device type" icon={<FaChartPie />}>
-                                    <DeviceOccupancyChart />
+                                    <DeviceOccupancyChart data={dashboardData?.deviceOccupancy} loading={loading} />
                                 </ChartCard>
-                                {/* Placeholder for maintenance or other device stats if available in future */}
                             </motion.div>
                         )}
 
@@ -241,7 +262,7 @@ const Analytics: React.FC = () => {
                                 transition={{ duration: 0.2 }}
                             >
                                 <ChartCard title="Snacks & Beverages" subtitle="Consumption metrics" icon={<MdFastfood />}>
-                                    <SnacksConsumptionChart />
+                                    <SnacksConsumptionChart data={dashboardData?.snacksConsumption} loading={loading} />
                                 </ChartCard>
                             </motion.div>
                         )}

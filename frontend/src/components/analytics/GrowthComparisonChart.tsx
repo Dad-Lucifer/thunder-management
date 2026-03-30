@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import {
     LineChart,
     Line,
@@ -10,7 +10,6 @@ import {
     ResponsiveContainer
 } from 'recharts';
 import { motion } from 'framer-motion';
-import api from '../../utils/api';
 
 interface GrowthData {
     day: string;
@@ -18,28 +17,12 @@ interface GrowthData {
     thisMonth: number;
 }
 
-const GrowthComparisonChart: React.FC = () => {
-    const [data, setData] = useState<GrowthData[]>([]);
+interface GrowthComparisonChartProps {
+    data?: GrowthData[];
+    loading?: boolean;
+}
 
-    useEffect(() => {
-        const fetchGrowth = async () => {
-            try {
-                const res = await api.get('/api/analytics/monthly');
-
-                if (Array.isArray(res.data)) {
-                    setData(res.data);
-                } else {
-                    console.error('Unexpected growth response:', res.data);
-                    setData([]);
-                }
-            } catch (error) {
-                console.error('Growth fetch error', error);
-                setData([]);
-            }
-        };
-
-        fetchGrowth();
-    }, []);
+const GrowthComparisonChart: React.FC<GrowthComparisonChartProps> = ({ data = [], loading = false }) => {
 
     return (
         <motion.div

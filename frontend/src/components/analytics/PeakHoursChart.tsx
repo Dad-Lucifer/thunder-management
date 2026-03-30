@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import {
     AreaChart,
     Area,
@@ -9,38 +9,18 @@ import {
     ResponsiveContainer
 } from 'recharts';
 import { motion } from 'framer-motion';
-import api from '../../utils/api';
 
 interface PeakHourData {
     time: string;
     users: number;
 }
 
-const PeakHoursChart: React.FC = () => {
-    const [data, setData] = useState<PeakHourData[]>([]);
-    const [loading, setLoading] = useState(true);
+interface PeakHoursChartProps {
+    data?: PeakHourData[];
+    loading?: boolean;
+}
 
-    useEffect(() => {
-        const fetchPeakHours = async () => {
-            try {
-                const res = await api.get('/api/analytics/peakhours');
-
-                if (Array.isArray(res.data)) {
-                    setData(res.data);
-                } else {
-                    console.error('Unexpected API response:', res.data);
-                    setData([]);
-                }
-            } catch (error) {
-                console.error('Peak hours fetch error', error);
-                setData([]);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchPeakHours();
-    }, []);
+const PeakHoursChart: React.FC<PeakHoursChartProps> = ({ data = [], loading = false }) => {
 
     return (
         <motion.div

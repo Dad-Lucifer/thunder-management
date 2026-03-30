@@ -6,7 +6,7 @@ export const isHappyHourTime = (date: Date = new Date(), config: PricingConfig =
     const hours = date.getHours();
     const minutes = date.getMinutes();
 
-    const check = config.happyHour;
+    const check = config?.happyHour || defaultPricingConfig.happyHour;
 
     const isMonWed = day >= 1 && day <= 3;
     const isThursday = day === 4;
@@ -40,7 +40,7 @@ export const isHappyHourTime = (date: Date = new Date(), config: PricingConfig =
 export const isFunNightTime = (date: Date = new Date(), config: PricingConfig = defaultPricingConfig): boolean => {
     const hours = date.getHours();
     const minutes = date.getMinutes();
-    const check = config.funNight;
+    const check = config?.funNight || defaultPricingConfig.funNight;
 
     // e.g. 20:45 to 6:00
     if (check.startHour > check.endHour) {
@@ -60,7 +60,7 @@ export const isNormalHourTime = (date: Date = new Date(), config: PricingConfig 
     const isThursday = day === 4;
     const isFriSun = day === 5 || day === 6 || day === 0;
 
-    const check = config.normalHour;
+    const check = config?.normalHour || defaultPricingConfig.normalHour;
 
     // First check if it's Fun Night, because Fun Night overrides Normal Hour at night
     if (isFunNightTime(date, config)) return false;
@@ -145,10 +145,13 @@ export const calculateSessionPrice = (
     const isThursday = day === 4;
     // const isFriSun = day === 5 || day === 6 || day === 0;
 
-    const dayPrices = isMonWed ? config.monWedPrices : (isThursday ? config.thursdayPrices : config.friSunPrices);
-    const { vr: vrConf, funNightPrices: fnConf } = config;
-    const hhConf = dayPrices.happyHour;
-    const nhConf = dayPrices.normalHour;
+    const dayPrices = isMonWed 
+        ? (config?.monWedPrices || defaultPricingConfig.monWedPrices)
+        : (isThursday ? (config?.thursdayPrices || defaultPricingConfig.thursdayPrices) : (config?.friSunPrices || defaultPricingConfig.friSunPrices));
+
+    const { vr: vrConf = defaultPricingConfig.vr, funNightPrices: fnConf = defaultPricingConfig.funNightPrices } = config || {};
+    const hhConf = dayPrices?.happyHour || defaultPricingConfig.monWedPrices.happyHour;
+    const nhConf = dayPrices?.normalHour || defaultPricingConfig.monWedPrices.normalHour;
 
     const getVRPrice = (pCount: number) => {
         if (pCount === 0) return 0;

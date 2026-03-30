@@ -345,12 +345,175 @@ const getMonthlyGrowthComparison = async (req, res) => {
 };
 
 
+const getAnalyticsDashboard = async (req, res) => {
+    try {
+        const now = new Date();
+        const last24Hours = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+
+        const [last24Snapshot, activeSessionsSnapshot, allSessionsSnapshot] = await Promise.all([
+            db.collection('sessions').where('createdAt', '>=', last24Hours.toISOString()).get(),
+            db.collection('sessions').where('status', '==', 'active').get(),
+            db.collection('sessions').get()
+        ]);
+
+        let totalEntries = 0;
+        const deviceCount = {};
+        const snackCount = {};
+        const hourCount = {};
+        const deviceMap = { pc: 0, ps: 0, vr: 0, wheel: 0, metabat: 0 };
+        const peakHourMap = {};
+        for (let h = 10; h <= 22; h++) {
+            peakHourMap[h] = 0;
+        }
+        const weeks = { 1: { thisMonth: 0, lastMonth: 0 }, 2: { thisMonth: 0, lastMonth: 0 }, 3: { thisMonth: 0, lastMonth: 0 }, 4: { thisMonth: 0, lastMonth: 0 } };
+
+        last24Snapshot.forEach(doc => {
+            const data = doc.data();
+            totalEntries++;
+
+            if (data.devices) {
+                Object.keys(data.devices).forEach(device => {
+                    deviceCount[device] = (deviceCount[device] || 0) + data.devices[device];
+                    if (deviceMap[device] !== undefined) {
+                        deviceMap[device] += Number(data.devices[device]);
+                    }
+                });
+            }
+
+            if (data.snackDetails && Array.isArray(data.snackDetails)) {
+                data.snackDetails.forEach(snack => {
+                    const snackName = snack.name?.trim();
+                    if (snackName) {
+                        snackCount[snackName] = (snackCount[snackName] || 0) + (Number(snack.quantity) || 1);
+                    }
+                });
+            } else if (data.snacks) {
+                const snackStr = String(data.snacks);
+                snackStr.split(',').forEach(s => {
+                    let snackName = s.trim();
+                    let qty = 1;
+                    const match = snackName.match(/(.*?)\s*x(\d+)$/i);
+                    if (match) {
+                        snackName = match[1].trim();
+                        qty = parseInt(match[2], 10) || 1;
+                    }
+                    if (snackName) {
+                        snackCount[snackName] = (snackCount[snackName] || 0) + qty;
+                    }
+                });
+            }
+
+            const hour = new Date(data.startTime).getHours();
+            hourCount[hour] = (hourCount[hour] || 0) + 1;
+
+            if (data.startTime && data.peopleCount) {
+                const date = new Date(data.startTime);
+                const istHour = date.getUTCHours() + 5.5;
+                const hourNorm = Math.floor((istHour + 24) % 24);
+                if (hourNorm >= 10 && hourNorm <= 22) {
+                    peakHourMap[hourNorm] += Number(data.peopleCount);
+                }
+            }
+        });
+
+        let occupiedDevices = 0;
+        activeSessionsSnapshot.forEach(doc => {
+            const data = doc.data();
+            if (!data.devices) return;
+            Object.values(data.devices).forEach(val => {
+                if (Array.isArray(val)) {
+                    occupiedDevices += val.length;
+                } else if (typeof val === 'number') {
+                    occupiedDevices += val;
+                }
+            });
+        });
+
+        const totalCapacity = Object.values(deviceLimits).reduce((sum, val) => sum + val, 0);
+
+        allSessionsSnapshot.forEach(doc => {
+            const data = doc.data();
+            if (!data.startTime || !data.peopleCount) return;
+            const date = new Date(data.startTime);
+            const dayOfMonth = date.getDate();
+            const week = Math.min(Math.ceil(dayOfMonth / 7), 4);
+
+            if (date >= startOfThisMonth && date <= now) {
+                weeks[week].thisMonth += Number(data.peopleCount);
+            }
+            if (date >= startOfLastMonth && date <= endOfLastMonth) {
+                weeks[week].lastMonth += Number(data.peopleCount);
+            }
+        });
+
+        const mostPopularDevice = Object.entries(deviceCount).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
+        const topSnack = Object.entries(snackCount).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
+        const peakHourRaw = Object.entries(hourCount).sort((a, b) => b[1] - a[1])[0]?.[0];
+        let peakHour = 'N/A';
+        if (peakHourRaw !== undefined) {
+            const hour = Number(peakHourRaw);
+            const suffix = hour >= 12 ? 'PM' : 'AM';
+            const formattedHour = hour % 12 === 0 ? 12 : hour % 12;
+            peakHour = `${formattedHour}:00 ${suffix}`;
+        }
+
+        const peakHoursResult = [];
+        for (let h = 10; h <= 22; h++) {
+            const suffix = h >= 12 ? 'PM' : 'AM';
+            const formattedHour = h % 12 === 0 ? 12 : h % 12;
+            peakHoursResult.push({ time: `${formattedHour} ${suffix}`, users: peakHourMap[h] });
+        }
+
+        const deviceUsageResult = [
+            { name: 'PC', usage: deviceMap.pc },
+            { name: 'PS5', usage: deviceMap.ps },
+            { name: 'VR', usage: deviceMap.vr },
+            { name: 'Sim', usage: deviceMap.wheel },
+            { name: 'MetaBat', usage: deviceMap.metabat }
+        ];
+
+        const snacksResult = Object.entries(snackCount).map(([name, value]) => ({ name, value }));
+
+        const growthResult = [
+            { day: 'Week 1', lastMonth: weeks[1].lastMonth, thisMonth: weeks[1].thisMonth },
+            { day: 'Week 2', lastMonth: weeks[2].lastMonth, thisMonth: weeks[2].thisMonth },
+            { day: 'Week 3', lastMonth: weeks[3].lastMonth, thisMonth: weeks[3].thisMonth },
+            { day: 'Week 4', lastMonth: weeks[4].lastMonth, thisMonth: weeks[4].thisMonth }
+        ];
+
+        res.status(200).json({
+            last24Hours: {
+                totalEntries,
+                mostPopularDevice,
+                topSnack,
+                peakHour
+            },
+            deviceOccupancy: {
+                occupied: occupiedDevices,
+                remaining: Math.max(totalCapacity - occupiedDevices, 0),
+                totalCapacity
+            },
+            peakHours: peakHoursResult,
+            deviceUsage: deviceUsageResult,
+            snacksConsumption: snacksResult,
+            monthlyGrowth: growthResult
+        });
+
+    } catch (error) {
+        console.error('❌ Analytics Dashboard Error:', error);
+        res.status(500).json({ message: 'Failed to fetch analytics dashboard' });
+    }
+};
+
 module.exports = {
     getDeviceOccupancyLast24Hours,
     getLast24HoursStats,
     getPeakHoursLast24Hours,
     getDeviceUsageLast24Hours,
     getSnacksConsumptionLast24Hours,
-    getMonthlyGrowthComparison
-
+    getMonthlyGrowthComparison,
+    getAnalyticsDashboard
 };

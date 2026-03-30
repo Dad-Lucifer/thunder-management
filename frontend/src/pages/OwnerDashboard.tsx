@@ -27,14 +27,33 @@ interface KPIStat {
     trend: number;
 }
 
+interface OwnerDashboardData {
+    kpiStats: KPIStat[];
+    revenueFlow: {
+        groupBy: 'hour' | 'day';
+        data: Array<{ time: string; amount: number }>;
+    };
+    recentTransactions: Array<{
+        id: string;
+        item: string;
+        amount: number;
+        status: string;
+        time: string;
+    }>;
+    revenueByMachine: Array<{ name: string; value: number }>;
+    deletionLogs: Array<{ id: string; [key: string]: any }>;
+}
+
 const OwnerDashboard: React.FC = () => {
     const [timeFilter, setTimeFilter] = useState('Today');
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
 
-    const [chartMode, setChartMode] = useState<'hour' | 'day'>('hour');
-    const [kpiStats, setKpiStats] = useState<KPIStat[]>([]);
-    const [revenueTrends, setRevenueTrends] = useState<any[]>([]);
+    const [dashboardData, setDashboardData] = useState<OwnerDashboardData | null>(null);
     const [loading, setLoading] = useState(true);
+
+    const kpiStats = dashboardData?.kpiStats || [];
+    const revenueTrends = dashboardData?.revenueFlow?.data || [];
+    const chartMode = dashboardData?.revenueFlow?.groupBy || 'hour';
 
     // Live clock
     useEffect(() => {
@@ -52,20 +71,9 @@ const OwnerDashboard: React.FC = () => {
             const range = timeFilter.toLowerCase().replace(' ', '');
 
             try {
-                // Fetch stats and revenue flow in parallel to avoid race conditions
-                const [statsRes, flowRes] = await Promise.all([
-                    fetch(`/api/owner/ownerstat?range=${range}`),
-                    fetch(`/api/owner/revenueflow?range=${range}`)
-                ]);
-
-                const statsData = await statsRes.json();
-                const flowData = await flowRes.json();
-
-                setKpiStats(statsData.kpiStats || []);
-
-                // Use flowData specifically for the chart
-                setRevenueTrends(flowData.data || []);
-                setChartMode(flowData.groupBy || 'hour');
+                const res = await fetch(`/api/owner/dashboard?range=${range}`);
+                const data = await res.json();
+                setDashboardData(data);
 
             } catch (err) {
                 console.error('❌ Dashboard data fetch failed:', err);
@@ -218,13 +226,13 @@ const OwnerDashboard: React.FC = () => {
                         </GlassCard>
                     </div>
 
-                    <OwnerPieCharts timeFilter={timeFilter} />
+                    <OwnerPieCharts timeFilter={timeFilter} data={dashboardData?.revenueByMachine} />
                 </section>
 
                 {/* 4. Secondary */}
                 <section className="secondary-grid">
                     <div className="pie-charts-area">
-                        <RecentTransactions timeFilter={timeFilter} />
+                        <RecentTransactions timeFilter={timeFilter} data={dashboardData?.recentTransactions} />
                     </div>
                     <div className="transactions-area">
                         <SubscriptionOverview />
@@ -234,7 +242,7 @@ const OwnerDashboard: React.FC = () => {
                 {/* 5. Snacks & Deletion Audits */}
                 <section className="operational-grid" style={{ marginTop: '1.5rem', display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '1.5rem' }}>
                     <SnackOverview />
-                    <DeletionLogs />
+                    <DeletionLogs data={dashboardData?.deletionLogs} loading={loading} />
                 </section>
 
             </div>

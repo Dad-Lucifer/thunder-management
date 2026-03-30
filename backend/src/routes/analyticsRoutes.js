@@ -5,7 +5,8 @@ const { getLast24HoursStats, getDeviceOccupancyLast24Hours,
     getPeakHoursLast24Hours,
     getDeviceUsageLast24Hours,
     getSnacksConsumptionLast24Hours,
-    getMonthlyGrowthComparison
+    getMonthlyGrowthComparison,
+    getAnalyticsDashboard
  } = require('../controllers/analyticsController');
 
 router.get('/last-24-hours', getLast24HoursStats);
@@ -14,4 +15,5 @@ router.get('/peakhours',getPeakHoursLast24Hours);
 router.get('/deviceusage',getDeviceUsageLast24Hours);
 router.get('/snack', getSnacksConsumptionLast24Hours);
 router.get('/monthly', getMonthlyGrowthComparison);
+router.get('/dashboard', getAnalyticsDashboard);
 module.exports = router;

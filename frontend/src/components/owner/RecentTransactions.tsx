@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { GlassCard, GradientTitle } from './ui/ModernComponents';
 import { FaClock, FaCheckCircle, FaPlayCircle } from 'react-icons/fa';
@@ -12,28 +12,12 @@ interface Transaction {
 }
 
 interface Props {
-    timeFilter: string;
+    timeFilter?: string;
+    data?: Transaction[];
 }
 
-const RecentTransactions: React.FC<Props> = ({ timeFilter }) => {
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
-
-    useEffect(() => {
-        const fetchTransactions = async () => {
-            try {
-                const range = timeFilter.toLowerCase().replace(' ', '');
-                const res = await fetch(
-                    `/api/owner/transactions?range=${range}`
-                );
-                const data = await res.json();
-                setTransactions(data);
-            } catch (err) {
-                console.error('❌ Transactions fetch failed', err);
-            }
-        };
-
-        fetchTransactions();
-    }, [timeFilter]);
+const RecentTransactions: React.FC<Props> = ({ data = [] }) => {
+    const transactions = data;
 
     return (
         <GlassCard className="txn-panel">

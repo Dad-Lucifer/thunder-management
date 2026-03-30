@@ -27,7 +27,23 @@ export const PricingProvider = ({ children }: { children: ReactNode }) => {
         try {
             const response = await api.get('/api/pricing');
             if (response.data) {
-                setConfig(response.data);
+                const mergeConfig = (defaultConf: any, fetchedConf: any): any => {
+                    const result = { ...defaultConf };
+                    for (const key in fetchedConf) {
+                        if (
+                            typeof fetchedConf[key] === 'object' && 
+                            fetchedConf[key] !== null && 
+                            !Array.isArray(fetchedConf[key]) && 
+                            key in defaultConf
+                        ) {
+                            result[key] = mergeConfig(defaultConf[key], fetchedConf[key]);
+                        } else {
+                            result[key] = fetchedConf[key];
+                        }
+                    }
+                    return result;
+                };
+                setConfig(mergeConfig(defaultPricingConfig, response.data));
             }
         } catch (error) {
             console.error('Failed to fetch pricing config:', error);

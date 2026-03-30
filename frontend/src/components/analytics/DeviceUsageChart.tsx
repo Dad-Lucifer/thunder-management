@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import {
     BarChart,
     Bar,
@@ -10,36 +10,18 @@ import {
     ResponsiveContainer
 } from 'recharts';
 import { motion } from 'framer-motion';
-import api from '../../utils/api';
 
 interface DeviceUsageData {
     name: string;
     usage: number;
 }
 
-const DeviceUsageChart: React.FC = () => {
-    const [data, setData] = useState<DeviceUsageData[]>([]);
+interface DeviceUsageChartProps {
+    data?: DeviceUsageData[];
+    loading?: boolean;
+}
 
-    useEffect(() => {
-        const fetchDeviceUsage = async () => {
-            try {
-                const res = await api.get('/api/analytics/deviceusage');
-
-                // 🔒 Safety: Recharts needs array
-                if (Array.isArray(res.data)) {
-                    setData(res.data);
-                } else {
-                    console.error('Unexpected device usage response:', res.data);
-                    setData([]);
-                }
-            } catch (error) {
-                console.error('Device usage fetch error', error);
-                setData([]);
-            }
-        };
-
-        fetchDeviceUsage();
-    }, []);
+const DeviceUsageChart: React.FC<DeviceUsageChartProps> = ({ data = [], loading = false }) => {
 
     return (
         <motion.div

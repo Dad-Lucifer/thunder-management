@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Sector } from 'recharts';
 import { motion } from 'framer-motion';
 import { FaTrophy, FaChartPie, FaSpinner } from 'react-icons/fa';
@@ -27,7 +27,8 @@ interface PieData {
 }
 
 interface Props {
-    timeFilter: string;
+    timeFilter?: string;
+    data?: PieData[];
 }
 
 // --- Helper Components ---
@@ -86,40 +87,18 @@ const renderActiveShape = (props: any) => {
 };
 
 // --- Main Component ---
-const OwnerPieCharts: React.FC<Props> = ({ timeFilter }) => {
-    const [data, setData] = useState<PieData[]>([]);
-    const [loading, setLoading] = useState(true);
+const OwnerPieCharts: React.FC<Props> = ({ data: propData = [] }) => {
     const [activeIndex, setActiveIndex] = useState(0);
 
     const onPieEnter = useCallback((_: any, index: number) => {
         setActiveIndex(index);
     }, []);
 
-    useEffect(() => {
-        const fetchRevenue = async () => {
-            try {
-                setLoading(true);
-                const range = timeFilter.toLowerCase().replace(' ', '');
-                // Using the optimized endpoint
-                const res = await fetch(
-                    `/api/owner/revenue-by-machine?range=${range}`
-                );
-                const result = await res.json();
+    const data = useMemo(() => {
+        return [...propData].sort((a, b) => b.value - a.value);
+    }, [propData]);
 
-                // Sort by value desc for better visualization
-                const sorted = (result || []).sort((a: PieData, b: PieData) => b.value - a.value);
-                setData(sorted);
-                // Reset active index to top performer
-                setActiveIndex(0);
-            } catch (err) {
-                console.error('❌ Revenue by machine fetch failed', err);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchRevenue();
-    }, [timeFilter]);
+    const loading = propData.length === 0;
 
     // Derived Stats
     const totalRevenue = useMemo(() => data.reduce((acc, curr) => acc + curr.value, 0), [data]);

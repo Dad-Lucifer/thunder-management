@@ -1,11 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { motion } from 'framer-motion';
-import axios from 'axios';
 
 interface SnackData {
     name: string;
     value: number;
+}
+
+interface SnacksConsumptionChartProps {
+    data?: SnackData[];
+    loading?: boolean;
 }
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#eab308'];
@@ -44,28 +48,7 @@ const renderCustomizedLabel = ({
     );
 };
 
-const SnacksConsumptionChart: React.FC = () => {
-    const [data, setData] = useState<SnackData[]>([]);
-
-    useEffect(() => {
-        const fetchSnacksData = async () => {
-            try {
-                const res = await axios.get('https://thunder-management.onrender.com/api/analytics/snack');
-
-                if (Array.isArray(res.data)) {
-                    setData(res.data);
-                } else {
-                    console.error('Unexpected snacks response:', res.data);
-                    setData([]);
-                }
-            } catch (error) {
-                console.error('Snacks fetch error', error);
-                setData([]);
-            }
-        };
-
-        fetchSnacksData();
-    }, []);
+const SnacksConsumptionChart: React.FC<SnacksConsumptionChartProps> = ({ data = [], loading = false }) => {
 
     return (
         <motion.div

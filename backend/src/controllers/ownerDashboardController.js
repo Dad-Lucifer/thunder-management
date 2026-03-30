@@ -303,10 +303,113 @@ const getDeletionLogs = async (req, res) => {
   }
 };
 
+const getOwnerDashboard = async (req, res) => {
+  try {
+    const { range = 'today' } = req.query;
+    const startDate = getStartDate(range);
+    const groupBy = range === 'today' || range === 'yesterday' ? 'hour' : 'day';
+
+    const [sessionsSnapshot, deletionLogsSnapshot] = await Promise.all([
+      db.collection('sessions').where('createdAt', '>=', startDate.toISOString()).get(),
+      db.collection('deletion_logs').where('deletedAt', '>=', startDate.toISOString()).orderBy('deletedAt', 'desc').get()
+    ]);
+
+    let totalRevenue = 0;
+    let totalDuration = 0;
+    let completedSessions = 0;
+    const buckets = {};
+    const totals = { ps: 0, pc: 0, vr: 0, wheel: 0, metabat: 0 };
+    
+    const pricingConfig = await getPricingConfig();
+
+    sessionsSnapshot.forEach(doc => {
+      const s = doc.data();
+      const createdAt = toDate(s.createdAt);
+      if (!createdAt || createdAt < startDate) return;
+
+      totalRevenue += Number(s.price || 0);
+      totalDuration += Number(s.duration || 0);
+      if (s.status === 'completed') {
+        completedSessions++;
+        
+        const key = groupBy === 'hour'
+          ? String(createdAt.getHours()).padStart(2, '0')
+          : createdAt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+        buckets[key] = (buckets[key] || 0) + Number(s.price || 0);
+
+        const split = calculateRevenueByMachine(
+          s.duration,
+          s.peopleCount,
+          s.devices,
+          createdAt,
+          pricingConfig
+        );
+        Object.keys(totals).forEach(k => {
+          totals[k] += split[k];
+        });
+      }
+    });
+
+    const avgSessionTime = completedSessions > 0 ? Math.round((totalDuration / completedSessions) * 60) : 0;
+
+    const revenueFlowResult = Object.entries(buckets).map(([time, amount]) => ({ time, amount }));
+
+    const revenueByMachineResult = Object.entries(totals)
+      .filter(([, v]) => v > 0)
+      .map(([k, v]) => ({ name: k.toUpperCase(), value: Math.round(v) }));
+
+    const transactionsSnapshot = await db.collection('sessions')
+      .where('createdAt', '>=', startDate.toISOString())
+      .orderBy('createdAt', 'desc')
+      .limit(50)
+      .get();
+
+    const transactions = transactionsSnapshot.docs
+      .map(doc => {
+        const s = doc.data();
+        const createdAt = toDate(s.createdAt);
+        if (!createdAt || createdAt < startDate) return null;
+        if (s.status !== 'completed') return null;
+        return {
+          id: doc.id,
+          item: `${s.customerName} (${s.duration}h)`,
+          amount: s.price,
+          status: s.status,
+          time: createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+      })
+      .filter(Boolean)
+      .slice(0, 15);
+
+    const deletionLogs = deletionLogsSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    res.json({
+      kpiStats: [
+        { label: 'Total Revenue', value: `₹${totalRevenue.toLocaleString()}`, trend: 0 },
+        { label: 'Completed Sessions', value: completedSessions, trend: 0 },
+        { label: 'Avg Session Time', value: `${avgSessionTime}m`, trend: 0 },
+        { label: 'Snacks Sold', value: 0, trend: 0 }
+      ],
+      revenueFlow: { groupBy, data: revenueFlowResult },
+      recentTransactions: transactions,
+      revenueByMachine: revenueByMachineResult,
+      deletionLogs
+    });
+
+  } catch (err) {
+    console.error('❌ Owner Dashboard Error:', err);
+    res.status(500).json({ message: 'Dashboard error' });
+  }
+};
+
 module.exports = {
   getOwnerDashboardStats,
   getRevenueFlow,
   getRecentTransactions,
   getRevenueByMachine,
-  getDeletionLogs
+  getDeletionLogs,
+  getOwnerDashboard
 };

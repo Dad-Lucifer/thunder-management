@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaChevronRight, FaChevronLeft, FaCalendarAlt, FaPlus, FaTrash, FaCheckCircle, FaBolt } from 'react-icons/fa';
+import { FaChevronRight, FaChevronLeft, FaCalendarAlt, FaPlus, FaTrash,  FaBolt } from 'react-icons/fa';
 import { FaPlaystation, FaDesktop, FaVrCardboard, FaGamepad } from 'react-icons/fa';
 import { GiSteeringWheel, GiCricketBat } from 'react-icons/gi';
 import BookingModal from './BookingModal';

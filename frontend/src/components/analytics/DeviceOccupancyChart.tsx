@@ -73,7 +73,7 @@ const DeviceOccupancyChart: React.FC<{ data: OccupancyData; loading?: boolean }>
                                 stroke: 'none',
                             } as any)}
                         >
-                            {chartData.map((entry, i) => (
+                            {chartData.map((_, i) => (
                                 <Cell key={i} fill={i === 0 ? 'url(#occGold)' : 'url(#occBlue)'} />
                             ))}
                         </Pie>

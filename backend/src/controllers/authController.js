@@ -105,7 +105,8 @@ const resolveusername = async (req, res) => {
         const userData = snapshot.docs[0].data();
 
         return res.status(200).json({
-            email: userData.email
+            email: userData.email,
+            role: userData.role
         });
 
     } catch (error) {

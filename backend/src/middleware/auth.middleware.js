@@ -12,10 +12,6 @@ const verifyFirebaseToken = async (req, res, next) => {
 
         const decodedToken = await auth.verifyIdToken(token);
 
-        if (!decodedToken.email_verified) {
-            return res.status(403).json({ message: 'Please verify your email first' });
-        }
-
         req.user = decodedToken;
         next();
 

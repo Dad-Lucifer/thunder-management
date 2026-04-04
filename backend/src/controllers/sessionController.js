@@ -394,7 +394,6 @@ const getUpcomingBookings = async (req, res) => {
         const snapshot = await db
             .collection('bookings')
             .where('status', '==', 'upcoming')
-            .orderBy('bookingTime', 'asc')
             .get();
 
         const bookings = snapshot.docs.map(doc => {
@@ -417,6 +416,9 @@ const getUpcomingBookings = async (req, res) => {
                 peopleCount: data.peopleCount
             };
         });
+
+        // Sort in memory to avoid requiring a composite index in Firestore
+        bookings.sort((a, b) => new Date(a.time) - new Date(b.time));
 
         return res.status(200).json(bookings);
 

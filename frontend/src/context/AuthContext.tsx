@@ -10,7 +10,7 @@ import { onAuthStateChanged, signOut } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import { auth } from '../config/firebase';
-import axios from 'axios';
+import api from '../utils/api';
 
 /* ---------------------------------------
    Types
@@ -45,7 +45,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
       if (!firebaseUser) {
         setUser(null);
-        delete axios.defaults.headers.common.Authorization;
+        delete api.defaults.headers.common.Authorization;
         setLoading(false);
         return;
       }
@@ -53,10 +53,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       try {
         const token = await firebaseUser.getIdToken();
 
-        // 🔥 Attach token globally
-        axios.defaults.headers.common.Authorization = `Bearer ${token}`;
+        // 🔥 Attach token to API instance
+        api.defaults.headers.common.Authorization = `Bearer ${token}`;
 
-        const res = await axios.get('/api/auth/me');
+        const res = await api.get('/api/auth/me');
 
         if (res.data?.user) {
           setUser({
@@ -84,7 +84,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   --------------------------------------- */
   const logout = async () => {
     await signOut(auth);
-    delete axios.defaults.headers.common.Authorization;
+    delete api.defaults.headers.common.Authorization;
     setUser(null);
     navigate('/login', { replace: true });
   };

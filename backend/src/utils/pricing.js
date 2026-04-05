@@ -140,28 +140,28 @@ const calculateSessionPrice = (
         }
     }
 
-    const { vr: vrConf, funNightPrices: fnConf } = config;
+    const { vr: vrConf, metabat: metabatConf } = config;
 
-    const getVRPrice = (pCount) => {
+    const getPriceForSpecs = (conf, pCount) => {
         if (pCount === 0) return 0;
         let rate = 0;
         const fullHours = Math.floor(durationMinutes / 60);
-        rate += fullHours * vrConf.hour;
+        rate += fullHours * conf.hour;
 
         const remainingMinutes = durationMinutes % 60;
         if (remainingMinutes > 0 && remainingMinutes <= 15) {
-            rate += vrConf.first15m;
+            rate += conf.first15m;
         } else if (remainingMinutes > 15 && remainingMinutes <= 30) {
-            rate += vrConf.first30m;
+            rate += conf.first30m;
         } else if (remainingMinutes > 30 && remainingMinutes < 60) {
-            rate += vrConf.remaining;
+            rate += conf.remaining;
         }
 
         return rate * pCount;
     };
 
-    grandTotal += numVR * getVRPrice(1);
-    grandTotal += numMetaBat * getVRPrice(1);
+    grandTotal += numVR * getPriceForSpecs(vrConf, 1);
+    grandTotal += numMetaBat * getPriceForSpecs(metabatConf || vrConf, 1);
 
     const day = startTime.getDay();
     const isMonWed = day >= 1 && day <= 3;
@@ -169,6 +169,7 @@ const calculateSessionPrice = (
     const dayPrices = isMonWed ? config.monWedPrices : (isThursday ? config.thursdayPrices : config.friSunPrices);
     const hhConf = dayPrices.happyHour;
     const nhConf = dayPrices.normalHour;
+    const fnConf = dayPrices.funNight;
 
     const isHappy = isHappyHourTime(startTime, config);
     const isNormal = isNormalHourTime(startTime, config);
@@ -187,10 +188,14 @@ const calculateSessionPrice = (
             }
         });
 
+        // PC
         if (numPC > 0) {
+            let pcCost = 0;
             const base = hhConf.pc.base;
             const extraMinutes = Math.max(0, durationMinutes - 60);
-            const pcCost = durationMinutes <= 30 ? (hhConf.pc.less30m || (base / 2)) : (base + (extraMinutes * (base / 60)));
+            pcCost = durationMinutes <= 30 ? (hhConf.pc.less30m || (base / 2)) : (base + (extraMinutes * (base / 60)));
+            // Note: Currently assumed 1 person per PC based on assignedPeople logic.
+            // If the user adds support for multi-player PC, we should apply multiplePersonBaseMod here as well.
             grandTotal += pcCost * numPC;
         }
 
@@ -226,7 +231,7 @@ const calculateSessionPrice = (
         if (numPC > 0) {
             const base = nhConf.pc.base;
             const extraMinutes = Math.max(0, durationMinutes - 60);
-            let pcCost = base + (extraMinutes * (base / 60));
+            let pcCost = durationMinutes <= 30 ? (nhConf.pc.less30m || (base / 2)) : (base + (extraMinutes * (base / 60)));
             if (durationHours > 5 && nhConf.pc.hourRateIfMoreThan3h) {
                 pcCost = Math.min(pcCost, nhConf.pc.hourRateIfMoreThan3h * durationHours);
             }
@@ -236,8 +241,12 @@ const calculateSessionPrice = (
         psDistribution.forEach(p => {
             if (p === 0) return;
             const baseCost = p === 1 ? nhConf.ps5.onePerson : nhConf.ps5.multiplePersonBaseMod * p;
-            const extraMinutes = Math.max(0, durationMinutes - 60);
-            grandTotal += baseCost + (extraMinutes * (baseCost / 60));
+            if (durationMinutes <= 30) {
+                grandTotal += (nhConf.ps5.less30m || (baseCost / 2)) * p;
+            } else {
+                const extraMinutes = Math.max(0, durationMinutes - 60);
+                grandTotal += baseCost + (extraMinutes * (baseCost / 60));
+            }
         });
 
         return grandTotal;
@@ -259,7 +268,7 @@ const calculateSessionPrice = (
         if (numPC > 0) {
             const base = fnConf.pc.base;
             const extraMinutes = Math.max(0, durationMinutes - 60);
-            let pcCost = base + (extraMinutes * (base / 60));
+            let pcCost = durationMinutes <= 30 ? (fnConf.pc.less30m || (base / 2)) : (base + (extraMinutes * (base / 60)));
             if (durationHours > 3 && fnConf.pc.hourRateIfMoreThan3h) {
                 pcCost = Math.min(pcCost, fnConf.pc.hourRateIfMoreThan3h * durationHours);
             }
@@ -269,8 +278,12 @@ const calculateSessionPrice = (
         psDistribution.forEach(p => {
             if (p === 0) return;
             const baseCost = p === 1 ? fnConf.ps5.onePerson : fnConf.ps5.multiplePersonBaseMod * p;
-            const extraMinutes = Math.max(0, durationMinutes - 60);
-            grandTotal += baseCost + (extraMinutes * (baseCost / 60));
+            if (durationMinutes <= 30) {
+                grandTotal += (fnConf.ps5.less30m || (baseCost / 2)) * p;
+            } else {
+                const extraMinutes = Math.max(0, durationMinutes - 60);
+                grandTotal += baseCost + (extraMinutes * (baseCost / 60));
+            }
         });
 
         return grandTotal;
@@ -317,7 +330,7 @@ const calculateRevenueByMachine = (
     const dayPrices = isMonWed ? config.monWedPrices : (isThursday ? config.thursdayPrices : config.friSunPrices);
     const hhConf = dayPrices.happyHour;
     const nhConf = dayPrices.normalHour;
-    const fnConf = config.funNightPrices;
+    const fnConf = dayPrices.funNight;
 
     const isHappy = isHappyHourTime(startTime, config);
     const isNormal = isNormalHourTime(startTime, config);
@@ -330,11 +343,19 @@ const calculateRevenueByMachine = (
         const extraMinutes = Math.max(0, durationMinutes - 60);
         pcCost = base + (extraMinutes * (base / 60));
 
-        if (isHappy && durationMinutes <= 30) {
+        if (durationMinutes <= 30) {
             pcCost = curConf.less30m || (base / 2);
         } else if (durationHours > 3 && !isHappy && curConf.hourRateIfMoreThan3h) {
             pcCost = Math.min(pcCost, curConf.hourRateIfMoreThan3h * durationHours);
         }
+
+        // Apply Multi-Mod if more people than machines
+        // (This is hypothetical as current UI doesn't explicitly group people per PC machine yet)
+        const avgPeoplePerPC = 1; // placeholder for future expansion
+        if (avgPeoplePerPC > 1 && curConf.multiplePersonBaseMod) {
+           // could apply mod logic here
+        }
+
         revenue.pc += pcCost * pc.length;
     }
 
@@ -358,8 +379,13 @@ const calculateRevenueByMachine = (
         const curConf = isHappy ? hhConf.ps5 : (isNormal ? nhConf.ps5 : fnConf.ps5);
 
         const baseRate = avgPeoplePerPS === 1 ? (curConf.onePerson || curConf.onePersonBase) : curConf.multiplePersonBaseMod * avgPeoplePerPS;
-        const extraMinutes = Math.max(0, durationMinutes - 60);
-        const psCost = baseRate + (extraMinutes * (baseRate / 60));
+        let psCost = 0;
+        if (durationMinutes <= 30) {
+            psCost = curConf.less30m || (baseRate / 2);
+        } else {
+            const extraMinutes = Math.max(0, durationMinutes - 60);
+            psCost = baseRate + (extraMinutes * (baseRate / 60));
+        }
         revenue.ps += psCost * ps.length;
     }
 

@@ -91,7 +91,7 @@ export const isNormalHourTime = (date: Date = new Date(), config: PricingConfig 
 export const calculateSessionPrice = (
     durationHours: number,
     peopleCount: number,
-    devices: { [key: string]: number | number[] },
+    devices: { [key: string]: number | number[] | undefined },
     startTime: Date = new Date(),
     config: PricingConfig = defaultPricingConfig
 ): number => {
@@ -143,34 +143,33 @@ export const calculateSessionPrice = (
     const day = startTime.getDay();
     const isMonWed = day >= 1 && day <= 3;
     const isThursday = day === 4;
-    // const isFriSun = day === 5 || day === 6 || day === 0;
 
     const dayPrices = isMonWed ? config.monWedPrices : (isThursday ? config.thursdayPrices : config.friSunPrices);
-    const { vr: vrConf, funNightPrices: fnConf } = config;
+    const { vr: vrConf, metabat: metabatConf } = config;
     const hhConf = dayPrices.happyHour;
     const nhConf = dayPrices.normalHour;
+    const fnConf = dayPrices.funNight;
 
-    const getVRPrice = (pCount: number) => {
+    const getPriceForSpecs = (conf: { hour: number; first15m: number; first30m: number; remaining: number }, pCount: number) => {
         if (pCount === 0) return 0;
         let rate = 0;
-
         const fullHours = Math.floor(durationMinutes / 60);
-        rate += fullHours * vrConf.hour;
+        rate += fullHours * conf.hour;
 
         const remainingMinutes = durationMinutes % 60;
         if (remainingMinutes > 0 && remainingMinutes <= 15) {
-            rate += vrConf.first15m;
+            rate += conf.first15m;
         } else if (remainingMinutes > 15 && remainingMinutes <= 30) {
-            rate += vrConf.first30m;
+            rate += conf.first30m;
         } else if (remainingMinutes > 30 && remainingMinutes < 60) {
-            rate += vrConf.remaining;
+            rate += conf.remaining;
         }
 
         return rate * pCount;
     };
 
-    grandTotal += numVR * getVRPrice(1);
-    grandTotal += numMetaBat * getVRPrice(1);
+    grandTotal += numVR * getPriceForSpecs(vrConf, 1);
+    grandTotal += numMetaBat * getPriceForSpecs(metabatConf || vrConf, 1);
 
     const isHappy = isHappyHourTime(startTime, config);
     const isNormal = isNormalHourTime(startTime, config);
@@ -178,43 +177,35 @@ export const calculateSessionPrice = (
 
     // 1️⃣ HAPPY HOUR
     if (isHappy) {
-        // PS5
         psDistribution.forEach((p: number) => {
             if (p === 0) return;
             const base = p === 1 ? hhConf.ps5.onePerson : hhConf.ps5.multiplePersonBaseMod * p;
             if (durationMinutes <= 30) {
                 grandTotal += (hhConf.ps5.less30m || (base / 2)) * p;
             } else {
-                // Proportional linear pricing by default, but allowing extra30mMod to influence if needed?
-                // Actually, user wants 120 -> 240. So (base / 60) * durationMinutes is the way.
-                // We will use base for first hour, and then (duration-60m) * (base/60)
                 const extraMinutes = Math.max(0, durationMinutes - 60);
                 grandTotal += base + (extraMinutes * (base / 60));
             }
         });
 
-        // PC
         if (numPC > 0) {
             const base = hhConf.pc.base;
             const extraMinutes = Math.max(0, durationMinutes - 60);
-            const pcCost = durationMinutes <= 30 ? (hhConf.pc.less30m || (base / 2)) : (base + (extraMinutes * (base / 60)));
-            grandTotal += pcCost * numPC;
+            const pCost = durationMinutes <= 30 ? (hhConf.pc.less30m || (base / 2)) : (base + (extraMinutes * (base / 60)));
+            grandTotal += pCost * numPC;
         }
 
-        // Wheel
         if (numWheel > 0) {
-            let wheelCost = 0;
+            let wCost = 0;
             if (durationMinutes <= 30) {
-                wheelCost = hhConf.wheel.less30m;
+                wCost = hhConf.wheel.less30m;
             } else {
                 const base = hhConf.wheel.base;
                 const extraMinutes = Math.max(0, durationMinutes - 60);
                 const extra30Blocks = Math.ceil(extraMinutes / 30);
-                // Note: historical code did extra30Blocks * 60, but config allows us to specify this. 
-                // Using extra60m as the 60 extra rate. For now let's apply the original logic using param.
-                wheelCost = base + (extra30Blocks * (hhConf.wheel.extra60m || 60));
+                wCost = base + (extra30Blocks * (hhConf.wheel.extra60m || 60));
             }
-            grandTotal += wheelCost * numWheel;
+            grandTotal += wCost * numWheel;
         }
 
         return grandTotal;
@@ -222,39 +213,36 @@ export const calculateSessionPrice = (
 
     // 2️⃣ NORMAL HOUR
     if (isNormal) {
-        // Wheel
         if (numWheel > 0) {
-            let wheelCost = 0;
-            if (durationMinutes <= 30) wheelCost = nhConf.wheel.less30m;
+            let wCost = 0;
+            if (durationMinutes <= 30) wCost = nhConf.wheel.less30m;
             else {
                 const extraMinutes = Math.max(0, durationMinutes - 60);
                 const extra30Blocks = Math.ceil(extraMinutes / 30);
-                wheelCost = nhConf.wheel.base + (extra30Blocks * nhConf.wheel.extra30m);
+                wCost = nhConf.wheel.base + (extra30Blocks * nhConf.wheel.extra30m);
             }
-            grandTotal += wheelCost * numWheel;
+            grandTotal += wCost * numWheel;
         }
 
-        // PC
         if (numPC > 0) {
             const base = nhConf.pc.base;
             const extraMinutes = Math.max(0, durationMinutes - 60);
-            let pcCost = base + (extraMinutes * (base / 60));
-
-            // Special rule for long sessions
+            let pCost = durationMinutes <= 30 ? (nhConf.pc.less30m || (base / 2)) : (base + (extraMinutes * (base / 60)));
             if (durationHours > 5 && nhConf.pc.hourRateIfMoreThan3h) {
-                pcCost = Math.min(pcCost, nhConf.pc.hourRateIfMoreThan3h * durationHours);
+                pCost = Math.min(pCost, nhConf.pc.hourRateIfMoreThan3h * durationHours);
             }
-            grandTotal += pcCost * numPC;
+            grandTotal += pCost * numPC;
         }
 
-        // PS5
         psDistribution.forEach((p: number) => {
             if (p === 0) return;
             const baseCost = p === 1 ? nhConf.ps5.onePerson : nhConf.ps5.multiplePersonBaseMod * p;
-
-            // Linear calculation to satisfy the 120->240 and 100->200 requests
-            const extraMinutes = Math.max(0, durationMinutes - 60);
-            grandTotal += baseCost + (extraMinutes * (baseCost / 60));
+            if (durationMinutes <= 30) {
+                grandTotal += (nhConf.ps5.less30m || (baseCost / 2)) * p;
+            } else {
+                const extraMinutes = Math.max(0, durationMinutes - 60);
+                grandTotal += baseCost + (extraMinutes * (baseCost / 60));
+            }
         });
 
         return grandTotal;
@@ -262,44 +250,43 @@ export const calculateSessionPrice = (
 
     // 3️⃣ FUN NIGHT
     if (isFun) {
-        // Wheel
         if (numWheel > 0) {
-            let wheelCost = 0;
-            if (durationMinutes <= 30) wheelCost = fnConf.wheel.less30m;
+            let wCost = 0;
+            if (durationMinutes <= 30) wCost = fnConf.wheel.less30m;
             else {
                 const extraMinutes = Math.max(0, durationMinutes - 60);
                 const extra30Blocks = Math.ceil(extraMinutes / 30);
-                wheelCost = fnConf.wheel.base + (extra30Blocks * fnConf.wheel.extra30m);
+                wCost = fnConf.wheel.base + (extra30Blocks * (fnConf.wheel.extra30m || 75));
             }
-            grandTotal += wheelCost * numWheel;
+            grandTotal += wCost * numWheel;
         }
 
-        // PC
         if (numPC > 0) {
             const base = fnConf.pc.base;
             const extraMinutes = Math.max(0, durationMinutes - 60);
-            let pcCost = base + (extraMinutes * (base / 60));
-
+            let pCost = durationMinutes <= 30 ? (fnConf.pc.less30m || (base / 2)) : (base + (extraMinutes * (base / 60)));
             if (durationHours > 3 && fnConf.pc.hourRateIfMoreThan3h) {
-                pcCost = Math.min(pcCost, fnConf.pc.hourRateIfMoreThan3h * durationHours);
+                pCost = Math.min(pCost, fnConf.pc.hourRateIfMoreThan3h * durationHours);
             }
-            grandTotal += pcCost * numPC;
+            grandTotal += pCost * numPC;
         }
 
-        // PS5
         psDistribution.forEach((p: number) => {
             if (p === 0) return;
             const baseCost = p === 1 ? fnConf.ps5.onePerson : fnConf.ps5.multiplePersonBaseMod * p;
-            const extraMinutes = Math.max(0, durationMinutes - 60);
-            grandTotal += baseCost + (extraMinutes * (baseCost / 60));
+            if (durationMinutes <= 30) {
+                grandTotal += (fnConf.ps5.less30m || (baseCost / 2)) * p;
+            } else {
+                const extraMinutes = Math.max(0, durationMinutes - 60);
+                grandTotal += baseCost + (extraMinutes * (baseCost / 60));
+            }
         });
 
         return grandTotal;
     }
 
-    // 4️⃣ FALLBACK
     if (grandTotal === 0 && (numPS + numPC + numWheel + numVR + numMetaBat) > 0) {
-        return durationHours * peopleCount * config.fallback.hourRate;
+        return durationHours * peopleCount * (config.fallback?.hourRate || 50);
     }
 
     return grandTotal;

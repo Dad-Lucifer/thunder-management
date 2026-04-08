@@ -179,7 +179,7 @@ const calculateSessionPrice = (
     if (isHappy) {
         psDistribution.forEach(p => {
             if (p === 0) return;
-            const base = p === 1 ? hhConf.ps5.onePerson : hhConf.ps5.multiplePersonBaseMod * p;
+            const base = p < 3 ? hhConf.ps5.onePerson * p : hhConf.ps5.multiplePersonBaseMod * p;
             if (durationMinutes <= 30) {
                 grandTotal += (hhConf.ps5.less30m || (base / 2)) * p;
             } else {
@@ -240,7 +240,7 @@ const calculateSessionPrice = (
 
         psDistribution.forEach(p => {
             if (p === 0) return;
-            const baseCost = p === 1 ? nhConf.ps5.onePerson : nhConf.ps5.multiplePersonBaseMod * p;
+            const baseCost = p < 3 ? nhConf.ps5.onePerson * p : nhConf.ps5.multiplePersonBaseMod * p;
             if (durationMinutes <= 30) {
                 grandTotal += (nhConf.ps5.less30m || (baseCost / 2)) * p;
             } else {
@@ -277,7 +277,7 @@ const calculateSessionPrice = (
 
         psDistribution.forEach(p => {
             if (p === 0) return;
-            const baseCost = p === 1 ? fnConf.ps5.onePerson : fnConf.ps5.multiplePersonBaseMod * p;
+            const baseCost = p < 3 ? fnConf.ps5.onePerson * p : fnConf.ps5.multiplePersonBaseMod * p;
             if (durationMinutes <= 30) {
                 grandTotal += (fnConf.ps5.less30m || (baseCost / 2)) * p;
             } else {
@@ -378,7 +378,7 @@ const calculateRevenueByMachine = (
         const avgPeoplePerPS = psPeople / ps.length;
         const curConf = isHappy ? hhConf.ps5 : (isNormal ? nhConf.ps5 : fnConf.ps5);
 
-        const baseRate = avgPeoplePerPS === 1 ? (curConf.onePerson || curConf.onePersonBase) : curConf.multiplePersonBaseMod * avgPeoplePerPS;
+        const baseRate = avgPeoplePerPS < 3 ? (curConf.onePerson || curConf.onePersonBase) * avgPeoplePerPS : curConf.multiplePersonBaseMod * avgPeoplePerPS;
         let psCost = 0;
         if (durationMinutes <= 30) {
             psCost = curConf.less30m || (baseRate / 2);

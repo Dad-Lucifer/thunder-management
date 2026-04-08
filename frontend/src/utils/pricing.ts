@@ -179,7 +179,7 @@ export const calculateSessionPrice = (
     if (isHappy) {
         psDistribution.forEach((p: number) => {
             if (p === 0) return;
-            const base = p === 1 ? hhConf.ps5.onePerson : hhConf.ps5.multiplePersonBaseMod * p;
+            const base = p < 3 ? hhConf.ps5.onePerson * p : hhConf.ps5.multiplePersonBaseMod * p;
             if (durationMinutes <= 30) {
                 grandTotal += (hhConf.ps5.less30m || (base / 2)) * p;
             } else {
@@ -236,7 +236,7 @@ export const calculateSessionPrice = (
 
         psDistribution.forEach((p: number) => {
             if (p === 0) return;
-            const baseCost = p === 1 ? nhConf.ps5.onePerson : nhConf.ps5.multiplePersonBaseMod * p;
+            const baseCost = p < 3 ? nhConf.ps5.onePerson * p : nhConf.ps5.multiplePersonBaseMod * p;
             if (durationMinutes <= 30) {
                 grandTotal += (nhConf.ps5.less30m || (baseCost / 2)) * p;
             } else {
@@ -273,7 +273,7 @@ export const calculateSessionPrice = (
 
         psDistribution.forEach((p: number) => {
             if (p === 0) return;
-            const baseCost = p === 1 ? fnConf.ps5.onePerson : fnConf.ps5.multiplePersonBaseMod * p;
+            const baseCost = p < 3 ? fnConf.ps5.onePerson * p : fnConf.ps5.multiplePersonBaseMod * p;
             if (durationMinutes <= 30) {
                 grandTotal += (fnConf.ps5.less30m || (baseCost / 2)) * p;
             } else {

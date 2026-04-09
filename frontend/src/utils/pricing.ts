@@ -200,7 +200,11 @@ export const calculateSessionPrice = (
     if (isHappy) {
         psDistribution.forEach((p: number) => {
             if (p === 0) return;
+<<<<<<< HEAD
             const baseCost = p === 1 ? hhConf.ps5.onePerson : (p === 2 && hhConf.ps5.twoPerson ? hhConf.ps5.twoPerson : hhConf.ps5.multiplePersonBaseMod * p);
+=======
+            const base = p < 3 ? hhConf.ps5.onePerson * p : hhConf.ps5.multiplePersonBaseMod * p;
+>>>>>>> addc4e3e5f0ef96a9e9290d541cb507d7fb2648b
             if (durationMinutes <= 30) {
                 grandTotal += hhConf.ps5.less30m ? (hhConf.ps5.less30m * p) : (baseCost / 2);
             } else {
@@ -266,7 +270,11 @@ export const calculateSessionPrice = (
 
         psDistribution.forEach((p: number) => {
             if (p === 0) return;
+<<<<<<< HEAD
             const baseCost = p === 1 ? nhConf.ps5.onePerson : (p === 2 && nhConf.ps5.twoPerson ? nhConf.ps5.twoPerson : nhConf.ps5.multiplePersonBaseMod * p);
+=======
+            const baseCost = p < 3 ? nhConf.ps5.onePerson * p : nhConf.ps5.multiplePersonBaseMod * p;
+>>>>>>> addc4e3e5f0ef96a9e9290d541cb507d7fb2648b
             if (durationMinutes <= 30) {
                 grandTotal += nhConf.ps5.less30m ? (nhConf.ps5.less30m * p) : (baseCost / 2);
             } else {
@@ -308,7 +316,11 @@ export const calculateSessionPrice = (
 
         psDistribution.forEach((p: number) => {
             if (p === 0) return;
+<<<<<<< HEAD
             const baseCost = p === 1 ? fnConf.ps5.onePerson : (p === 2 && fnConf.ps5.twoPerson ? fnConf.ps5.twoPerson : fnConf.ps5.multiplePersonBaseMod * p);
+=======
+            const baseCost = p < 3 ? fnConf.ps5.onePerson * p : fnConf.ps5.multiplePersonBaseMod * p;
+>>>>>>> addc4e3e5f0ef96a9e9290d541cb507d7fb2648b
             if (durationMinutes <= 30) {
                 grandTotal += fnConf.ps5.less30m ? (fnConf.ps5.less30m * p) : (baseCost / 2);
             } else {

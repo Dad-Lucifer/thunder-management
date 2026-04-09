@@ -288,6 +288,7 @@ const PricingConfigPage = () => {
                                 <th style={{ width: '220px' }}>Platform Device</th>
                                 <th>Max 30m</th>
                                 <th>Base (60m)</th>
+                                <th>2 Players (60m)</th>
                                 <th>Multi-Mod</th>
                                 <th>Extra Time</th>
                             </tr>
@@ -298,6 +299,7 @@ const PricingConfigPage = () => {
                                 <td><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MdSettingsInputComponent style={{ color: '#facc15' }} /> PS5 (Happy Hour)</div></td>
                                 <td><input type="number" value={priceSet.happyHour.ps5.less30m} onChange={e => handleChange(prefix, 'happyHour.ps5.less30m', Number(e.target.value))} className="dashboard-input" /></td>
                                 <td><input type="number" value={priceSet.happyHour.ps5.onePerson} onChange={e => handleChange(prefix, 'happyHour.ps5.onePerson', Number(e.target.value))} className="dashboard-input" /></td>
+                                <td><input type="number" value={priceSet.happyHour.ps5.twoPerson || ''} onChange={e => handleChange(prefix, 'happyHour.ps5.twoPerson', Number(e.target.value))} className="dashboard-input" placeholder="-" /></td>
                                 <td><input type="number" value={priceSet.happyHour.ps5.multiplePersonBaseMod} onChange={e => handleChange(prefix, 'happyHour.ps5.multiplePersonBaseMod', Number(e.target.value))} className="dashboard-input" /></td>
                                 <td><input type="number" value={priceSet.happyHour.ps5.extra30mMod} onChange={e => handleChange(prefix, 'happyHour.ps5.extra30mMod', Number(e.target.value))} className="dashboard-input" /></td>
                             </tr>
@@ -305,6 +307,7 @@ const PricingConfigPage = () => {
                                 <td><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MdSettingsInputComponent style={{ color: '#60a5fa' }} /> PS5 (Normal)</div></td>
                                 <td><input type="number" value={priceSet.normalHour.ps5.less30m} onChange={e => handleChange(prefix, 'normalHour.ps5.less30m', Number(e.target.value))} className="dashboard-input" /></td>
                                 <td><input type="number" value={priceSet.normalHour.ps5.onePerson} onChange={e => handleChange(prefix, 'normalHour.ps5.onePerson', Number(e.target.value))} className="dashboard-input" /></td>
+                                <td><input type="number" value={priceSet.normalHour.ps5.twoPerson || ''} onChange={e => handleChange(prefix, 'normalHour.ps5.twoPerson', Number(e.target.value))} className="dashboard-input" placeholder="-" /></td>
                                 <td><input type="number" value={priceSet.normalHour.ps5.multiplePersonBaseMod} onChange={e => handleChange(prefix, 'normalHour.ps5.multiplePersonBaseMod', Number(e.target.value))} className="dashboard-input" /></td>
                                 <td><input type="number" value={priceSet.normalHour.ps5.extra30mMod} onChange={e => handleChange(prefix, 'normalHour.ps5.extra30mMod', Number(e.target.value))} className="dashboard-input" /></td>
                             </tr>
@@ -314,6 +317,7 @@ const PricingConfigPage = () => {
                                 <td><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MdComputer style={{ color: '#facc15' }} /> PC (Happy Hour)</div></td>
                                 <td><input type="number" value={priceSet.happyHour.pc.less30m} onChange={e => handleChange(prefix, 'happyHour.pc.less30m', Number(e.target.value))} className="dashboard-input" /></td>
                                 <td><input type="number" value={priceSet.happyHour.pc.base} onChange={e => handleChange(prefix, 'happyHour.pc.base', Number(e.target.value))} className="dashboard-input" /></td>
+                                <td><input type="number" value={priceSet.happyHour.pc.twoPerson || ''} onChange={e => handleChange(prefix, 'happyHour.pc.twoPerson', Number(e.target.value))} className="dashboard-input" placeholder="-" /></td>
                                 <td><input type="number" value={priceSet.happyHour.pc.multiplePersonBaseMod} onChange={e => handleChange(prefix, 'happyHour.pc.multiplePersonBaseMod', Number(e.target.value))} className="dashboard-input" /></td>
                                 <td><input type="number" value={priceSet.happyHour.pc.extra30m} onChange={e => handleChange(prefix, 'happyHour.pc.extra30m', Number(e.target.value))} className="dashboard-input" /></td>
                             </tr>
@@ -321,6 +325,7 @@ const PricingConfigPage = () => {
                                 <td><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MdComputer style={{ color: '#60a5fa' }} /> PC (Normal)</div></td>
                                 <td><input type="number" value={priceSet.normalHour.pc.less30m} onChange={e => handleChange(prefix, 'normalHour.pc.less30m', Number(e.target.value))} className="dashboard-input" /></td>
                                 <td><input type="number" value={priceSet.normalHour.pc.base} onChange={e => handleChange(prefix, 'normalHour.pc.base', Number(e.target.value))} className="dashboard-input" /></td>
+                                <td><input type="number" value={priceSet.normalHour.pc.twoPerson || ''} onChange={e => handleChange(prefix, 'normalHour.pc.twoPerson', Number(e.target.value))} className="dashboard-input" placeholder="-" /></td>
                                 <td><input type="number" value={priceSet.normalHour.pc.multiplePersonBaseMod} onChange={e => handleChange(prefix, 'normalHour.pc.multiplePersonBaseMod', Number(e.target.value))} className="dashboard-input" /></td>
                                 <td><input type="number" value={priceSet.normalHour.pc.extra30m} onChange={e => handleChange(prefix, 'normalHour.pc.extra30m', Number(e.target.value))} className="dashboard-input" /></td>
                             </tr>
@@ -330,6 +335,7 @@ const PricingConfigPage = () => {
                                 <td><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MdSettingsInputComponent style={{ color: '#facc15' }} /> Wheel (Happy Hour)</div></td>
                                 <td><input type="number" value={priceSet.happyHour.wheel.less30m} onChange={e => handleChange(prefix, 'happyHour.wheel.less30m', Number(e.target.value))} className="dashboard-input" /></td>
                                 <td><input type="number" value={priceSet.happyHour.wheel.base} onChange={e => handleChange(prefix, 'happyHour.wheel.base', Number(e.target.value))} className="dashboard-input" /></td>
+                                <td style={{ textAlign: 'center', color: '#64748b' }}>-</td>
                                 <td><input type="number" value={priceSet.happyHour.wheel.multiplePersonBaseMod} onChange={e => handleChange(prefix, 'happyHour.wheel.multiplePersonBaseMod', Number(e.target.value))} className="dashboard-input" /></td>
                                 <td><input type="number" value={priceSet.happyHour.wheel.extra60m} onChange={e => handleChange(prefix, 'happyHour.wheel.extra60m', Number(e.target.value))} className="dashboard-input" /></td>
                             </tr>
@@ -337,6 +343,7 @@ const PricingConfigPage = () => {
                                 <td><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MdSettingsInputComponent style={{ color: '#60a5fa' }} /> Wheel (Normal)</div></td>
                                 <td><input type="number" value={priceSet.normalHour.wheel.less30m} onChange={e => handleChange(prefix, 'normalHour.wheel.less30m', Number(e.target.value))} className="dashboard-input" /></td>
                                 <td><input type="number" value={priceSet.normalHour.wheel.base} onChange={e => handleChange(prefix, 'normalHour.wheel.base', Number(e.target.value))} className="dashboard-input" /></td>
+                                <td style={{ textAlign: 'center', color: '#64748b' }}>-</td>
                                 <td><input type="number" value={priceSet.normalHour.wheel.multiplePersonBaseMod} onChange={e => handleChange(prefix, 'normalHour.wheel.multiplePersonBaseMod', Number(e.target.value))} className="dashboard-input" /></td>
                                 <td><input type="number" value={priceSet.normalHour.wheel.extra30m} onChange={e => handleChange(prefix, 'normalHour.wheel.extra30m', Number(e.target.value))} className="dashboard-input" /></td>
                             </tr>
@@ -346,6 +353,7 @@ const PricingConfigPage = () => {
                                 <td><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MdShield style={{ color: '#ec4899' }} /> PS5 (Fun Night)</div></td>
                                 <td><input type="number" value={priceSet.funNight.ps5.less30m} onChange={e => handleChange(prefix, 'funNight.ps5.less30m', Number(e.target.value))} className="dashboard-input" /></td>
                                 <td><input type="number" value={priceSet.funNight.ps5.onePerson} onChange={e => handleChange(prefix, 'funNight.ps5.onePerson', Number(e.target.value))} className="dashboard-input" /></td>
+                                <td><input type="number" value={priceSet.funNight.ps5.twoPerson || ''} onChange={e => handleChange(prefix, 'funNight.ps5.twoPerson', Number(e.target.value))} className="dashboard-input" placeholder="-" /></td>
                                 <td><input type="number" value={priceSet.funNight.ps5.multiplePersonBaseMod} onChange={e => handleChange(prefix, 'funNight.ps5.multiplePersonBaseMod', Number(e.target.value))} className="dashboard-input" /></td>
                                 <td><input type="number" value={priceSet.funNight.ps5.extra30mMod} onChange={e => handleChange(prefix, 'funNight.ps5.extra30mMod', Number(e.target.value))} className="dashboard-input" /></td>
                             </tr>
@@ -353,6 +361,7 @@ const PricingConfigPage = () => {
                                 <td><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MdShield style={{ color: '#ec4899' }} /> PC (Fun Night)</div></td>
                                 <td><input type="number" value={priceSet.funNight.pc.less30m} onChange={e => handleChange(prefix, 'funNight.pc.less30m', Number(e.target.value))} className="dashboard-input" /></td>
                                 <td><input type="number" value={priceSet.funNight.pc.base} onChange={e => handleChange(prefix, 'funNight.pc.base', Number(e.target.value))} className="dashboard-input" /></td>
+                                <td><input type="number" value={priceSet.funNight.pc.twoPerson || ''} onChange={e => handleChange(prefix, 'funNight.pc.twoPerson', Number(e.target.value))} className="dashboard-input" placeholder="-" /></td>
                                 <td><input type="number" value={priceSet.funNight.pc.multiplePersonBaseMod} onChange={e => handleChange(prefix, 'funNight.pc.multiplePersonBaseMod', Number(e.target.value))} className="dashboard-input" /></td>
                                 <td><input type="number" value={priceSet.funNight.pc.extra30m} onChange={e => handleChange(prefix, 'funNight.pc.extra30m', Number(e.target.value))} className="dashboard-input" /></td>
                             </tr>
@@ -360,6 +369,7 @@ const PricingConfigPage = () => {
                                 <td><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MdShield style={{ color: '#ec4899' }} /> Wheel (Fun Night)</div></td>
                                 <td><input type="number" value={priceSet.funNight.wheel.less30m} onChange={e => handleChange(prefix, 'funNight.wheel.less30m', Number(e.target.value))} className="dashboard-input" /></td>
                                 <td><input type="number" value={priceSet.funNight.wheel.base} onChange={e => handleChange(prefix, 'funNight.wheel.base', Number(e.target.value))} className="dashboard-input" /></td>
+                                <td style={{ textAlign: 'center', color: '#64748b' }}>-</td>
                                 <td><input type="number" value={priceSet.funNight.wheel.multiplePersonBaseMod} onChange={e => handleChange(prefix, 'funNight.wheel.multiplePersonBaseMod', Number(e.target.value))} className="dashboard-input" /></td>
                                 <td><input type="number" value={priceSet.funNight.wheel.extra30m} onChange={e => handleChange(prefix, 'funNight.wheel.extra30m', Number(e.target.value))} className="dashboard-input" /></td>
                             </tr>

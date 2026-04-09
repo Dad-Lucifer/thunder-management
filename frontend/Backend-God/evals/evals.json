@@ -1,0 +1,85 @@
+{
+  "skill_name": "Backend-God",
+  "evals": [
+    {
+      "id": 1,
+      "name": "thundercoin-atomic-fix",
+      "category": "thundercoin-atomic",
+      "prompt": "The ThunderCoin deduction in createSession is broken. When two employees create sessions simultaneously for the same phone number, the player ends up with more coins than they should after both deductions. Fix it so the deduction is always atomic.",
+      "expected_output": "sessionController.js updated to use FieldValue.increment(-safeDeduction) and the stale get()-then-update() pattern for thunderCoins is eliminated",
+      "target_file": "backend/src/controllers/sessionController.js",
+      "target_function": "createSession",
+      "files": [],
+      "expectations": [
+        "The fix uses admin.firestore.FieldValue.increment with a negative value for the deduction",
+        "The stale playerSnap.get() read before the update is removed or made unnecessary",
+        "module.exports in sessionController.js still contains all original exports",
+        "The global.io.emit call is guarded with if (global.io)"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "ist-pricing-timezone-fix",
+      "category": "pricing-ist",
+      "prompt": "The backend is deployed on Render (UTC timezone). Session prices are being calculated wrong — customers at 9 PM IST are getting Happy Hour pricing instead of Fun Night pricing. The server clock is in UTC but pricing rules use IST times. Fix the timing functions.",
+      "expected_output": "utils/pricing.js updated so isHappyHourTime, isFunNightTime, isNormalHourTime apply IST offset when server is in UTC",
+      "target_file": "backend/src/utils/pricing.js",
+      "target_function": "isHappyHourTime",
+      "files": [],
+      "expectations": [
+        "The fix applies a +5.5 hour IST offset to the date before calling .getHours() and .getDay()",
+        "All three time-check functions (isHappyHourTime, isFunNightTime, isNormalHourTime) are updated consistently",
+        "The exported function signatures remain identical (same parameters)",
+        "calculateSessionPrice still uses the updated time-check functions correctly"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "booking-not-converting",
+      "category": "booking-conversion",
+      "prompt": "Upcoming bookings are not automatically converting to active sessions even when their booking time has passed. The scheduler appears to be running but nothing converts. Diagnose and fix the issue.",
+      "expected_output": "The convertBookingsToSessions function is fixed so the time window check is correct, or the scheduler is confirmed running and a fallback explanation is provided",
+      "target_file": "backend/src/services/bookingScheduler.js",
+      "target_function": "startBookingScheduler",
+      "files": [],
+      "expectations": [
+        "The agent correctly identifies that the 60-second window (timeDiff <= 60000) may be too narrow",
+        "The agent checks bookingScheduler.js is being imported and started in server.js or index.js",
+        "The fix either widens the conversion window or surfaces the issue clearly with a proposed solution",
+        "The manual startBooking endpoint is mentioned as a fallback path"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "snack-deduction-crash",
+      "category": "snack-transaction",
+      "prompt": "When creating a session with snacks, the server sometimes returns 500 with 'Snack not found in inventory' even when the snack clearly exists in the database. This happens intermittently under load. Fix it.",
+      "expected_output": "snackService.js deductStock transaction improved to use document refs instead of queries inside transaction, eliminating the ABORTED errors",
+      "target_file": "backend/src/services/snackService.js",
+      "target_function": "deductStock",
+      "files": [],
+      "expectations": [
+        "The agent identifies that queries inside Firestore transactions can cause ABORTED retries mistaken for 'not found'",
+        "A solution is proposed: pre-fetch snack IDs outside the transaction, then use doc refs inside",
+        "The transaction structure (reads before writes) is preserved",
+        "The error message logging is improved to distinguish ABORTED from genuine not-found"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "analytics-duplicate-reads",
+      "category": "analytics-reads",
+      "prompt": "The analytics dashboard is making too many Firestore reads. Every time the dashboard loads, we see 5+ reads. Identify the duplicate reads and explain how to reduce them to the minimum.",
+      "expected_output": "Analysis showing individual analytics endpoints cause 1 read each (5 total) vs getDashboardData which uses Promise.all for 3 parallel reads. Frontend should call /api/analytics/dashboard exclusively.",
+      "target_file": "backend/src/controllers/analyticsController.js",
+      "target_function": "getDashboardData",
+      "files": [],
+      "expectations": [
+        "The agent correctly identifies getDashboardData as the consolidated endpoint with 3 reads",
+        "The agent identifies the 5 individual endpoints that each do 1+ read",
+        "The agent recommends the frontend use /api/analytics/dashboard exclusively",
+        "The agent mentions Promise.all as the optimization technique used"
+      ]
+    }
+  ]
+}

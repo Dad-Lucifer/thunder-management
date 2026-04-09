@@ -117,25 +117,46 @@ const calculateSessionPrice = (
 
     let grandTotal = 0;
 
-    let assignedPeople = 0;
-    const peopleOnPC = numPC;
-    const peopleOnVR = numVR;
-    const peopleOnWheel = numWheel;
-    const peopleOnMetaBat = numMetaBat;
+    const baseAssigned = numPC + numVR + numWheel + numMetaBat + numPS;
+    let extraPeople = Math.max(0, peopleCount - baseAssigned);
 
-    assignedPeople += peopleOnPC + peopleOnVR + peopleOnWheel + peopleOnMetaBat;
+    let extraOnPS = 0;
+    let extraOnPC = 0;
 
-    const peopleOnPS = Math.max(0, peopleCount - assignedPeople);
+    if (numPS > 0) {
+        extraOnPS = extraPeople;
+    } else if (numPC > 0) {
+        extraOnPC = extraPeople;
+    }
+
+    const totalPeopleOnPS = numPS > 0 ? numPS + extraOnPS : 0;
+    const totalPeopleOnPC = numPC > 0 ? numPC + extraOnPC : 0;
 
     const psDistribution = [];
     if (numPS > 0) {
-        if (peopleOnPS === 0) {
+        if (totalPeopleOnPS === 0) {
             for (let i = 0; i < numPS; i++) psDistribution.push(0);
         } else {
-            const baseSplit = Math.floor(peopleOnPS / numPS);
-            const remainder = peopleOnPS % numPS;
+            const baseSplit = Math.floor(totalPeopleOnPS / numPS);
+            const remainder = totalPeopleOnPS % numPS;
             for (let i = 0; i < numPS; i++) {
                 psDistribution.push(i < remainder ? baseSplit + 1 : baseSplit);
+            }
+        }
+    }
+
+    const pcDistribution = [];
+    if (numPC > 0) {
+        if (totalPeopleOnPC === 0) {
+            for (let i = 0; i < numPC; i++) pcDistribution.push(0);
+        } else if (totalPeopleOnPC === 2 && numPC === 2) {
+            // Group 2 players on 2 PCs into a single '2-person' block to trigger the twoPerson bundle price
+            pcDistribution.push(2);
+        } else {
+            const baseSplit = Math.floor(totalPeopleOnPC / numPC);
+            const remainder = totalPeopleOnPC % numPC;
+            for (let i = 0; i < numPC; i++) {
+                pcDistribution.push(i < remainder ? baseSplit + 1 : baseSplit);
             }
         }
     }
@@ -179,25 +200,26 @@ const calculateSessionPrice = (
     if (isHappy) {
         psDistribution.forEach(p => {
             if (p === 0) return;
-            const base = p === 1 ? hhConf.ps5.onePerson : hhConf.ps5.multiplePersonBaseMod * p;
+            const baseCost = p === 1 ? hhConf.ps5.onePerson : (p === 2 && hhConf.ps5.twoPerson ? hhConf.ps5.twoPerson : hhConf.ps5.multiplePersonBaseMod * p);
             if (durationMinutes <= 30) {
-                grandTotal += (hhConf.ps5.less30m || (base / 2)) * p;
+                grandTotal += hhConf.ps5.less30m ? (hhConf.ps5.less30m * p) : (baseCost / 2);
             } else {
                 const extraMinutes = Math.max(0, durationMinutes - 60);
-                grandTotal += base + (extraMinutes * (base / 60));
+                grandTotal += baseCost + (extraMinutes * (baseCost / 60));
             }
         });
 
         // PC
-        if (numPC > 0) {
-            let pcCost = 0;
-            const base = hhConf.pc.base;
-            const extraMinutes = Math.max(0, durationMinutes - 60);
-            pcCost = durationMinutes <= 30 ? (hhConf.pc.less30m || (base / 2)) : (base + (extraMinutes * (base / 60)));
-            // Note: Currently assumed 1 person per PC based on assignedPeople logic.
-            // If the user adds support for multi-player PC, we should apply multiplePersonBaseMod here as well.
-            grandTotal += pcCost * numPC;
-        }
+        pcDistribution.forEach(p => {
+            if (p === 0) return;
+            const baseCost = p === 1 ? hhConf.pc.base : (p === 2 && hhConf.pc.twoPerson ? hhConf.pc.twoPerson : (hhConf.pc.multiplePersonBaseMod || hhConf.pc.base) * p);
+            if (durationMinutes <= 30) {
+                grandTotal += hhConf.pc.less30m ? (hhConf.pc.less30m * p) : (baseCost / 2);
+            } else {
+                const extraMinutes = Math.max(0, durationMinutes - 60);
+                grandTotal += baseCost + (extraMinutes * (baseCost / 60));
+            }
+        });
 
         if (numWheel > 0) {
             let wheelCost = 0;
@@ -228,21 +250,26 @@ const calculateSessionPrice = (
             grandTotal += wheelCost * numWheel;
         }
 
-        if (numPC > 0) {
-            const base = nhConf.pc.base;
-            const extraMinutes = Math.max(0, durationMinutes - 60);
-            let pcCost = durationMinutes <= 30 ? (nhConf.pc.less30m || (base / 2)) : (base + (extraMinutes * (base / 60)));
-            if (durationHours > 5 && nhConf.pc.hourRateIfMoreThan3h) {
-                pcCost = Math.min(pcCost, nhConf.pc.hourRateIfMoreThan3h * durationHours);
+        pcDistribution.forEach(p => {
+            if (p === 0) return;
+            const baseCost = p === 1 ? nhConf.pc.base : (p === 2 && nhConf.pc.twoPerson ? nhConf.pc.twoPerson : (nhConf.pc.multiplePersonBaseMod || nhConf.pc.base) * p);
+            if (durationMinutes <= 30) {
+                grandTotal += nhConf.pc.less30m ? (nhConf.pc.less30m * p) : (baseCost / 2);
+            } else {
+                const extraMinutes = Math.max(0, durationMinutes - 60);
+                let pCost = baseCost + (extraMinutes * (baseCost / 60));
+                if (durationHours > 5 && nhConf.pc.hourRateIfMoreThan3h) {
+                    pCost = Math.min(pCost, (nhConf.pc.hourRateIfMoreThan3h * p) * durationHours);
+                }
+                grandTotal += pCost;
             }
-            grandTotal += pcCost * numPC;
-        }
+        });
 
         psDistribution.forEach(p => {
             if (p === 0) return;
-            const baseCost = p === 1 ? nhConf.ps5.onePerson : nhConf.ps5.multiplePersonBaseMod * p;
+            const baseCost = p === 1 ? nhConf.ps5.onePerson : (p === 2 && nhConf.ps5.twoPerson ? nhConf.ps5.twoPerson : nhConf.ps5.multiplePersonBaseMod * p);
             if (durationMinutes <= 30) {
-                grandTotal += (nhConf.ps5.less30m || (baseCost / 2)) * p;
+                grandTotal += nhConf.ps5.less30m ? (nhConf.ps5.less30m * p) : (baseCost / 2);
             } else {
                 const extraMinutes = Math.max(0, durationMinutes - 60);
                 grandTotal += baseCost + (extraMinutes * (baseCost / 60));
@@ -265,21 +292,26 @@ const calculateSessionPrice = (
             grandTotal += wheelCost * numWheel;
         }
 
-        if (numPC > 0) {
-            const base = fnConf.pc.base;
-            const extraMinutes = Math.max(0, durationMinutes - 60);
-            let pcCost = durationMinutes <= 30 ? (fnConf.pc.less30m || (base / 2)) : (base + (extraMinutes * (base / 60)));
-            if (durationHours > 3 && fnConf.pc.hourRateIfMoreThan3h) {
-                pcCost = Math.min(pcCost, fnConf.pc.hourRateIfMoreThan3h * durationHours);
+        pcDistribution.forEach(p => {
+            if (p === 0) return;
+            const baseCost = p === 1 ? fnConf.pc.base : (p === 2 && fnConf.pc.twoPerson ? fnConf.pc.twoPerson : (fnConf.pc.multiplePersonBaseMod || fnConf.pc.base) * p);
+            if (durationMinutes <= 30) {
+                grandTotal += fnConf.pc.less30m ? (fnConf.pc.less30m * p) : (baseCost / 2);
+            } else {
+                const extraMinutes = Math.max(0, durationMinutes - 60);
+                let pCost = baseCost + (extraMinutes * (baseCost / 60));
+                if (durationHours > 3 && fnConf.pc.hourRateIfMoreThan3h) {
+                    pCost = Math.min(pCost, (fnConf.pc.hourRateIfMoreThan3h * p) * durationHours);
+                }
+                grandTotal += pCost;
             }
-            grandTotal += pcCost * numPC;
-        }
+        });
 
         psDistribution.forEach(p => {
             if (p === 0) return;
-            const baseCost = p === 1 ? fnConf.ps5.onePerson : fnConf.ps5.multiplePersonBaseMod * p;
+            const baseCost = p === 1 ? fnConf.ps5.onePerson : (p === 2 && fnConf.ps5.twoPerson ? fnConf.ps5.twoPerson : fnConf.ps5.multiplePersonBaseMod * p);
             if (durationMinutes <= 30) {
-                grandTotal += (fnConf.ps5.less30m || (baseCost / 2)) * p;
+                grandTotal += fnConf.ps5.less30m ? (fnConf.ps5.less30m * p) : (baseCost / 2);
             } else {
                 const extraMinutes = Math.max(0, durationMinutes - 60);
                 grandTotal += baseCost + (extraMinutes * (baseCost / 60));
@@ -324,6 +356,56 @@ const calculateRevenueByMachine = (
     revenue.vr += vr.length * vrRate;
     revenue.metabat += meta.length * vrRate;
 
+    const numPS = ps.length;
+    const numPC = pc.length;
+    const numVR = vr.length;
+    const numWheel = wheel.length;
+    const numMetaBat = meta.length;
+
+    const baseAssigned = numPC + numVR + numWheel + numMetaBat + numPS;
+    let extraPeople = Math.max(0, peopleCount - baseAssigned);
+
+    let extraOnPS = 0;
+    let extraOnPC = 0;
+
+    if (numPS > 0) {
+        extraOnPS = extraPeople;
+    } else if (numPC > 0) {
+        extraOnPC = extraPeople;
+    }
+
+    const totalPeopleOnPS = numPS > 0 ? numPS + extraOnPS : 0;
+    const totalPeopleOnPC = numPC > 0 ? numPC + extraOnPC : 0;
+
+    const psDistribution = [];
+    if (numPS > 0) {
+        if (totalPeopleOnPS === 0) {
+            for (let i = 0; i < numPS; i++) psDistribution.push(0);
+        } else {
+            const baseSplit = Math.floor(totalPeopleOnPS / numPS);
+            const remainder = totalPeopleOnPS % numPS;
+            for (let i = 0; i < numPS; i++) {
+                psDistribution.push(i < remainder ? baseSplit + 1 : baseSplit);
+            }
+        }
+    }
+
+    const pcDistribution = [];
+    if (numPC > 0) {
+        if (totalPeopleOnPC === 0) {
+            for (let i = 0; i < numPC; i++) pcDistribution.push(0);
+        } else if (totalPeopleOnPC === 2 && numPC === 2) {
+            // Group 2 players on 2 PCs into a single '2-person' block to trigger the twoPerson bundle price
+            pcDistribution.push(2);
+        } else {
+            const baseSplit = Math.floor(totalPeopleOnPC / numPC);
+            const remainder = totalPeopleOnPC % numPC;
+            for (let i = 0; i < numPC; i++) {
+                pcDistribution.push(i < remainder ? baseSplit + 1 : baseSplit);
+            }
+        }
+    }
+
     const day = startTime.getDay();
     const isMonWed = day >= 1 && day <= 3;
     const isThursday = day === 4;
@@ -336,28 +418,21 @@ const calculateRevenueByMachine = (
     const isNormal = isNormalHourTime(startTime, config);
     const isFun = isFunNightTime(startTime, config);
 
-    if (pc.length > 0) {
-        let pcCost = 0;
+    pcDistribution.forEach(p => {
+        if (p === 0) return;
         const curConf = isHappy ? hhConf.pc : (isNormal ? nhConf.pc : fnConf.pc);
-        const base = curConf.base;
-        const extraMinutes = Math.max(0, durationMinutes - 60);
-        pcCost = base + (extraMinutes * (base / 60));
-
+        const baseCost = p === 1 ? curConf.base : (p === 2 && curConf.twoPerson ? curConf.twoPerson : (curConf.multiplePersonBaseMod || curConf.base) * p);
         if (durationMinutes <= 30) {
-            pcCost = curConf.less30m || (base / 2);
-        } else if (durationHours > 3 && !isHappy && curConf.hourRateIfMoreThan3h) {
-            pcCost = Math.min(pcCost, curConf.hourRateIfMoreThan3h * durationHours);
+            revenue.pc += curConf.less30m ? (curConf.less30m * p) : (baseCost / 2);
+        } else {
+            const extraMinutes = Math.max(0, durationMinutes - 60);
+            let pCost = baseCost + (extraMinutes * (baseCost / 60));
+            if (durationHours > 3 && !isHappy && curConf.hourRateIfMoreThan3h) {
+                pCost = Math.min(pCost, (curConf.hourRateIfMoreThan3h * p) * durationHours);
+            }
+            revenue.pc += pCost;
         }
-
-        // Apply Multi-Mod if more people than machines
-        // (This is hypothetical as current UI doesn't explicitly group people per PC machine yet)
-        const avgPeoplePerPC = 1; // placeholder for future expansion
-        if (avgPeoplePerPC > 1 && curConf.multiplePersonBaseMod) {
-           // could apply mod logic here
-        }
-
-        revenue.pc += pcCost * pc.length;
-    }
+    });
 
     if (wheel.length > 0) {
         let wheelCost = 0;
@@ -373,21 +448,17 @@ const calculateRevenueByMachine = (
         revenue.wheel += wheelCost * wheel.length;
     }
 
-    if (ps.length > 0) {
-        const psPeople = Math.max(ps.length, peopleCount - (pc.length + vr.length + wheel.length + meta.length));
-        const avgPeoplePerPS = psPeople / ps.length;
+    psDistribution.forEach(p => {
+        if (p === 0) return;
         const curConf = isHappy ? hhConf.ps5 : (isNormal ? nhConf.ps5 : fnConf.ps5);
-
-        const baseRate = avgPeoplePerPS === 1 ? (curConf.onePerson || curConf.onePersonBase) : curConf.multiplePersonBaseMod * avgPeoplePerPS;
-        let psCost = 0;
+        const baseCost = p === 1 ? (curConf.onePerson || curConf.onePersonBase) : (p === 2 && curConf.twoPerson ? curConf.twoPerson : curConf.multiplePersonBaseMod * p);
         if (durationMinutes <= 30) {
-            psCost = curConf.less30m || (baseRate / 2);
+            revenue.ps += curConf.less30m ? (curConf.less30m * p) : (baseCost / 2);
         } else {
             const extraMinutes = Math.max(0, durationMinutes - 60);
-            psCost = baseRate + (extraMinutes * (baseRate / 60));
+            revenue.ps += baseCost + (extraMinutes * (baseCost / 60));
         }
-        revenue.ps += psCost * ps.length;
-    }
+    });
 
     return revenue;
 };

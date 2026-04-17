@@ -255,6 +255,11 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
     );
     const totalPrice = basePrice + snackCost - coinDiscount;
 
+    const numPcSelected = (form.devices.pc as number[] | undefined)?.length || 0;
+    const numPeople = Number(form.peopleCount) || 1;
+    // For PC sessions: price only valid when headcount matches PC count
+    const pcCountValid = numPcSelected === 0 || numPeople === numPcSelected;
+
 
     const isHappyHour = isHappyHourTime(new Date(), config);
     const isFunNight = !isHappyHour && isFunNightTime(new Date(), config);
@@ -709,32 +714,52 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
                             {Object.values(form.devices).some(val => val.length > 0) && (
                                 <div className="price-display" style={{ textAlign: "right" }}>
 
-                                    <span className="price-label">Estimated Total</span>
-
-                                    {/* Original price */}
-                                    {coinDiscount > 0 && (
-                                        <div style={{ fontSize: 12, color: "#94a3b8" }}>
-                                            Original: ₹{Math.round(basePrice + snackCost)}
+                                    {!pcCountValid ? (
+                                        <div style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '6px',
+                                            justifyContent: 'flex-end',
+                                            color: '#f59e0b',
+                                            fontSize: '0.85rem',
+                                            fontWeight: 600,
+                                            padding: '6px 10px',
+                                            background: 'rgba(245,158,11,0.08)',
+                                            borderRadius: '8px',
+                                            border: '1px solid rgba(245,158,11,0.25)'
+                                        }}>
+                                            ⚠️ Set People Count to {numPcSelected} to match {numPcSelected} PC{numPcSelected > 1 ? 's' : ''}
                                         </div>
-                                    )}
+                                    ) : (
+                                        <>
+                                            <span className="price-label">Estimated Total</span>
 
-                                    {/* Thunder coin discount */}
-                                    {coinDiscount > 0 && (
-                                        <div style={{ fontSize: 12, color: "#22c55e", fontWeight: 600 }}>
-                                            ⚡ Thunder Coins Discount: -₹{coinDiscount}
-                                        </div>
-                                    )}
+                                            {/* Original price */}
+                                            {coinDiscount > 0 && (
+                                                <div style={{ fontSize: 12, color: "#94a3b8" }}>
+                                                    Original: ₹{Math.round(basePrice + snackCost)}
+                                                </div>
+                                            )}
 
-                                    {/* Final price */}
-                                    <span
-                                        className="price-val"
-                                        style={{
-                                            color: coinDiscount > 0 ? "#22c55e" : undefined,
-                                            fontSize: coinDiscount > 0 ? "1.4rem" : undefined
-                                        }}
-                                    >
-                                        ₹{Math.round(totalPrice)}
-                                    </span>
+                                            {/* Thunder coin discount */}
+                                            {coinDiscount > 0 && (
+                                                <div style={{ fontSize: 12, color: "#22c55e", fontWeight: 600 }}>
+                                                    ⚡ Thunder Coins Discount: -₹{coinDiscount}
+                                                </div>
+                                            )}
+
+                                            {/* Final price */}
+                                            <span
+                                                className="price-val"
+                                                style={{
+                                                    color: coinDiscount > 0 ? "#22c55e" : undefined,
+                                                    fontSize: coinDiscount > 0 ? "1.4rem" : undefined
+                                                }}
+                                            >
+                                                ₹{Math.round(totalPrice)}
+                                            </span>
+                                        </>
+                                    )}
 
                                 </div>
                             )}

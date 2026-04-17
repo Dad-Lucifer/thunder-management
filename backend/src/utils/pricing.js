@@ -170,8 +170,11 @@ const calculateSessionPrice = (
             if (durationMinutes <= 30) {
                 grandTotal += hhConf.ps5.less30m ? (hhConf.ps5.less30m * p) : (baseCost / 2);
             } else {
-                const extraMinutes = Math.max(0, durationMinutes - 60);
-                grandTotal += baseCost + (extraMinutes * (baseCost / 60));
+                const fullHours = Math.max(1, Math.floor(durationMinutes / 60));
+                const partialMinutes = durationMinutes >= 60 ? durationMinutes % 60 : 0;
+                const extra30Blocks = partialMinutes > 0 ? Math.ceil(partialMinutes / 30) : 0;
+                const extraRate = (hhConf.ps5.extra30mMod || (baseCost / 2)) * (p > 2 ? p : 1);
+                grandTotal += fullHours * baseCost + (extra30Blocks * extraRate);
             }
         });
         // PC
@@ -181,8 +184,11 @@ const calculateSessionPrice = (
             if (durationMinutes <= 30) {
                 grandTotal += hhConf.pc.less30m ? (hhConf.pc.less30m * p) : (baseCost / 2);
             } else {
-                const extraMinutes = Math.max(0, durationMinutes - 60);
-                grandTotal += baseCost + (extraMinutes * (baseCost / 60));
+                const fullHours = Math.max(1, Math.floor(durationMinutes / 60));
+                const partialMinutes = durationMinutes >= 60 ? durationMinutes % 60 : 0;
+                const extra30Blocks = partialMinutes > 0 ? Math.ceil(partialMinutes / 30) : 0;
+                const extraRate = (hhConf.pc.extra30m || (baseCost / 2)) * (p > 2 ? p : 1);
+                grandTotal += fullHours * baseCost + (extra30Blocks * extraRate);
             }
         });
         if (numWheel > 0) {
@@ -193,7 +199,8 @@ const calculateSessionPrice = (
                 const base = hhConf.wheel.base;
                 const extraMinutes = Math.max(0, durationMinutes - 60);
                 const extra30Blocks = Math.ceil(extraMinutes / 30);
-                wheelCost = base + (extra30Blocks * hhConf.wheel.extra60m);
+                const extraRate = hhConf.wheel.extra30m || (hhConf.wheel.extra60m ? hhConf.wheel.extra60m / 2 : base / 2);
+                wheelCost = base + (extra30Blocks * extraRate);
             }
             grandTotal += wheelCost * numWheel;
         }
@@ -217,8 +224,11 @@ const calculateSessionPrice = (
             if (durationMinutes <= 30) {
                 grandTotal += nhConf.pc.less30m ? (nhConf.pc.less30m * p) : (baseCost / 2);
             } else {
-                const extraMinutes = Math.max(0, durationMinutes - 60);
-                let pCost = baseCost + (extraMinutes * (baseCost / 60));
+                const fullHours = Math.max(1, Math.floor(durationMinutes / 60));
+                const partialMinutes = durationMinutes >= 60 ? durationMinutes % 60 : 0;
+                const extra30Blocks = partialMinutes > 0 ? Math.ceil(partialMinutes / 30) : 0;
+                const extraRate = (nhConf.pc.extra30m || (baseCost / 2)) * (p > 2 ? p : 1);
+                let pCost = fullHours * baseCost + (extra30Blocks * extraRate);
                 if (durationHours > 5 && nhConf.pc.hourRateIfMoreThan3h) {
                     pCost = Math.min(pCost, (nhConf.pc.hourRateIfMoreThan3h * p) * durationHours);
                 }
@@ -231,8 +241,11 @@ const calculateSessionPrice = (
             if (durationMinutes <= 30) {
                 grandTotal += nhConf.ps5.less30m ? (nhConf.ps5.less30m * p) : (baseCost / 2);
             } else {
-                const extraMinutes = Math.max(0, durationMinutes - 60);
-                grandTotal += baseCost + (extraMinutes * (baseCost / 60));
+                const fullHours = Math.max(1, Math.floor(durationMinutes / 60));
+                const partialMinutes = durationMinutes >= 60 ? durationMinutes % 60 : 0;
+                const extra30Blocks = partialMinutes > 0 ? Math.ceil(partialMinutes / 30) : 0;
+                const extraRate = (nhConf.ps5.extra30mMod || (baseCost / 2)) * (p > 2 ? p : 1);
+                grandTotal += fullHours * baseCost + (extra30Blocks * extraRate);
             }
         });
         return grandTotal;
@@ -255,8 +268,11 @@ const calculateSessionPrice = (
             if (durationMinutes <= 30) {
                 grandTotal += fnConf.pc.less30m ? (fnConf.pc.less30m * p) : (baseCost / 2);
             } else {
-                const extraMinutes = Math.max(0, durationMinutes - 60);
-                let pCost = baseCost + (extraMinutes * (baseCost / 60));
+                const fullHours = Math.max(1, Math.floor(durationMinutes / 60));
+                const partialMinutes = durationMinutes >= 60 ? durationMinutes % 60 : 0;
+                const extra30Blocks = partialMinutes > 0 ? Math.ceil(partialMinutes / 30) : 0;
+                const extraRate = (fnConf.pc.extra30m || (baseCost / 2)) * (p > 2 ? p : 1);
+                let pCost = fullHours * baseCost + (extra30Blocks * extraRate);
                 if (durationHours > 3 && fnConf.pc.hourRateIfMoreThan3h) {
                     pCost = Math.min(pCost, (fnConf.pc.hourRateIfMoreThan3h * p) * durationHours);
                 }
@@ -269,8 +285,11 @@ const calculateSessionPrice = (
             if (durationMinutes <= 30) {
                 grandTotal += fnConf.ps5.less30m ? (fnConf.ps5.less30m * p) : (baseCost / 2);
             } else {
-                const extraMinutes = Math.max(0, durationMinutes - 60);
-                grandTotal += baseCost + (extraMinutes * (baseCost / 60));
+                const fullHours = Math.max(1, Math.floor(durationMinutes / 60));
+                const partialMinutes = durationMinutes >= 60 ? durationMinutes % 60 : 0;
+                const extra30Blocks = partialMinutes > 0 ? Math.ceil(partialMinutes / 30) : 0;
+                const extraRate = (fnConf.ps5.extra30mMod || (baseCost / 2)) * (p > 2 ? p : 1);
+                grandTotal += fullHours * baseCost + (extra30Blocks * extraRate);
             }
         });
         return grandTotal;
@@ -363,8 +382,11 @@ const calculateRevenueByMachine = (
         if (durationMinutes <= 30) {
             revenue.pc += curConf.less30m ? (curConf.less30m * p) : (baseCost / 2);
         } else {
-            const extraMinutes = Math.max(0, durationMinutes - 60);
-            let pCost = baseCost + (extraMinutes * (baseCost / 60));
+            const fullHours = Math.max(1, Math.floor(durationMinutes / 60));
+            const partialMinutes = durationMinutes >= 60 ? durationMinutes % 60 : 0;
+            const extra30Blocks = partialMinutes > 0 ? Math.ceil(partialMinutes / 30) : 0;
+            const extraRate = (curConf.extra30m || (baseCost / 2)) * (p > 2 ? p : 1);
+            let pCost = fullHours * baseCost + (extra30Blocks * extraRate);
             if (durationHours > 3 && !isHappy && curConf.hourRateIfMoreThan3h) {
                 pCost = Math.min(pCost, (curConf.hourRateIfMoreThan3h * p) * durationHours);
             }
@@ -379,7 +401,7 @@ const calculateRevenueByMachine = (
         } else {
             const extraMinutes = Math.max(0, durationMinutes - 60);
             const extra30Blocks = Math.ceil(extraMinutes / 30);
-            const extraRate = isHappy ? (curConf.extra60m / 2) : curConf.extra30m;
+            const extraRate = curConf.extra30m || (curConf.extra60m ? curConf.extra60m / 2 : curConf.base / 2);
             wheelCost = curConf.base + (extra30Blocks * extraRate);
         }
         revenue.wheel += wheelCost * wheel.length;
@@ -391,8 +413,11 @@ const calculateRevenueByMachine = (
         if (durationMinutes <= 30) {
             revenue.ps += curConf.less30m ? (curConf.less30m * p) : (baseCost / 2);
         } else {
-            const extraMinutes = Math.max(0, durationMinutes - 60);
-            revenue.ps += baseCost + (extraMinutes * (baseCost / 60));
+            const fullHours = Math.max(1, Math.floor(durationMinutes / 60));
+            const partialMinutes = durationMinutes >= 60 ? durationMinutes % 60 : 0;
+            const extra30Blocks = partialMinutes > 0 ? Math.ceil(partialMinutes / 30) : 0;
+            const extraRate = (curConf.extra30mMod || (baseCost / 2)) * (p > 2 ? p : 1);
+            revenue.ps += fullHours * baseCost + (extra30Blocks * extraRate);
         }
     });
     return revenue;

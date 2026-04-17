@@ -214,7 +214,7 @@ const BookingModal = ({ onClose, onSuccess }: Props) => {
       case 2:
         return form.bookingDate && form.bookingTime && form.bookingEndTime;
       case 3:
-        return getTotalDevices() > 0 && getTotalDevices() <= form.peopleCount;
+        return getTotalDevices() > 0 && getTotalDevices() <= form.peopleCount && pcCountValid;
       default:
         return false;
     }
@@ -280,6 +280,10 @@ const BookingModal = ({ onClose, onSuccess }: Props) => {
       config
     );
   };
+
+  // PC count validation: price only valid when people count matches PC count
+  const numPcSelected = (form.devices.pc as number[])?.length || 0;
+  const pcCountValid = numPcSelected === 0 || form.peopleCount === numPcSelected;
 
 
   const getFormattedSummary = () => {
@@ -705,9 +709,22 @@ const BookingModal = ({ onClose, onSuccess }: Props) => {
                     </div>
                     <div className="summary-item" style={{ borderTop: '1px dashed rgba(255,255,255,0.1)', paddingTop: '0.5rem', marginTop: '0.5rem' }}>
                       <span className="summary-label">Estimated Cost:</span>
-                      <span className="summary-value" style={{ color: '#ec4899', fontWeight: 'bold' }}>
-                        ₹{getEstimatedPrice().toFixed(0)}
-                      </span>
+                      {!pcCountValid ? (
+                        <span style={{
+                          color: '#f59e0b',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}>
+                          ⚠️ Set People to {numPcSelected} to match {numPcSelected} PC{numPcSelected > 1 ? 's' : ''}
+                        </span>
+                      ) : (
+                        <span className="summary-value" style={{ color: '#ec4899', fontWeight: 'bold' }}>
+                          ₹{getEstimatedPrice().toFixed(0)}
+                        </span>
+                      )}
                     </div>
                   </div>
                 )}

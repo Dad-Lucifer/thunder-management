@@ -178,8 +178,8 @@ const calculateSessionPrice = (
             }
         });
         // PC
-        pcDistribution.forEach(p => {
-            if (p === 0) return;
+        if (numPC > 0 && totalPeopleOnPC > 0) {
+            const p = totalPeopleOnPC;
             const baseCost = p === 1 ? hhConf.pc.base : (p === 2 && hhConf.pc.twoPerson ? hhConf.pc.twoPerson : (hhConf.pc.multiplePersonBaseMod || hhConf.pc.base) * p);
             if (durationMinutes <= 30) {
                 grandTotal += hhConf.pc.less30m ? (hhConf.pc.less30m * p) : (baseCost / 2);
@@ -187,10 +187,10 @@ const calculateSessionPrice = (
                 const fullHours = Math.max(1, Math.floor(durationMinutes / 60));
                 const partialMinutes = durationMinutes >= 60 ? durationMinutes % 60 : 0;
                 const extra30Blocks = partialMinutes > 0 ? Math.ceil(partialMinutes / 30) : 0;
-                const extraRate = (hhConf.pc.extra30m || (baseCost / 2)) * (p > 2 ? p : 1);
+                const extraRate = (hhConf.pc.extra30m || (baseCost / 2)) * (p > 1 ? p : 1);
                 grandTotal += fullHours * baseCost + (extra30Blocks * extraRate);
             }
-        });
+        }
         if (numWheel > 0) {
             let wheelCost = 0;
             if (durationMinutes <= 30) {
@@ -218,8 +218,8 @@ const calculateSessionPrice = (
             }
             grandTotal += wheelCost * numWheel;
         }
-        pcDistribution.forEach(p => {
-            if (p === 0) return;
+        if (numPC > 0 && totalPeopleOnPC > 0) {
+            const p = totalPeopleOnPC;
             const baseCost = p === 1 ? nhConf.pc.base : (p === 2 && nhConf.pc.twoPerson ? nhConf.pc.twoPerson : (nhConf.pc.multiplePersonBaseMod || nhConf.pc.base) * p);
             if (durationMinutes <= 30) {
                 grandTotal += nhConf.pc.less30m ? (nhConf.pc.less30m * p) : (baseCost / 2);
@@ -227,14 +227,14 @@ const calculateSessionPrice = (
                 const fullHours = Math.max(1, Math.floor(durationMinutes / 60));
                 const partialMinutes = durationMinutes >= 60 ? durationMinutes % 60 : 0;
                 const extra30Blocks = partialMinutes > 0 ? Math.ceil(partialMinutes / 30) : 0;
-                const extraRate = (nhConf.pc.extra30m || (baseCost / 2)) * (p > 2 ? p : 1);
+                const extraRate = (nhConf.pc.extra30m || (baseCost / 2)) * (p > 1 ? p : 1);
                 let pCost = fullHours * baseCost + (extra30Blocks * extraRate);
                 if (durationHours > 5 && nhConf.pc.hourRateIfMoreThan3h) {
                     pCost = Math.min(pCost, (nhConf.pc.hourRateIfMoreThan3h * p) * durationHours);
                 }
                 grandTotal += pCost;
             }
-        });
+        }
         psDistribution.forEach(p => {
             if (p === 0) return;
             const baseCost = p === 1 ? nhConf.ps5.onePerson : (p === 2 && nhConf.ps5.twoPerson ? nhConf.ps5.twoPerson : nhConf.ps5.multiplePersonBaseMod * p);
@@ -262,8 +262,8 @@ const calculateSessionPrice = (
             }
             grandTotal += wheelCost * numWheel;
         }
-        pcDistribution.forEach(p => {
-            if (p === 0) return;
+        if (numPC > 0 && totalPeopleOnPC > 0) {
+            const p = totalPeopleOnPC;
             const baseCost = p === 1 ? fnConf.pc.base : (p === 2 && fnConf.pc.twoPerson ? fnConf.pc.twoPerson : (fnConf.pc.multiplePersonBaseMod || fnConf.pc.base) * p);
             if (durationMinutes <= 30) {
                 grandTotal += fnConf.pc.less30m ? (fnConf.pc.less30m * p) : (baseCost / 2);
@@ -271,14 +271,14 @@ const calculateSessionPrice = (
                 const fullHours = Math.max(1, Math.floor(durationMinutes / 60));
                 const partialMinutes = durationMinutes >= 60 ? durationMinutes % 60 : 0;
                 const extra30Blocks = partialMinutes > 0 ? Math.ceil(partialMinutes / 30) : 0;
-                const extraRate = (fnConf.pc.extra30m || (baseCost / 2)) * (p > 2 ? p : 1);
+                const extraRate = (fnConf.pc.extra30m || (baseCost / 2)) * (p > 1 ? p : 1);
                 let pCost = fullHours * baseCost + (extra30Blocks * extraRate);
                 if (durationHours > 3 && fnConf.pc.hourRateIfMoreThan3h) {
                     pCost = Math.min(pCost, (fnConf.pc.hourRateIfMoreThan3h * p) * durationHours);
                 }
                 grandTotal += pCost;
             }
-        });
+        }
         psDistribution.forEach(p => {
             if (p === 0) return;
             const baseCost = p === 1 ? fnConf.ps5.onePerson : (p === 2 && fnConf.ps5.twoPerson ? fnConf.ps5.twoPerson : fnConf.ps5.multiplePersonBaseMod * p);
@@ -385,7 +385,7 @@ const calculateRevenueByMachine = (
             const fullHours = Math.max(1, Math.floor(durationMinutes / 60));
             const partialMinutes = durationMinutes >= 60 ? durationMinutes % 60 : 0;
             const extra30Blocks = partialMinutes > 0 ? Math.ceil(partialMinutes / 30) : 0;
-            const extraRate = (curConf.extra30m || (baseCost / 2)) * (p > 2 ? p : 1);
+            const extraRate = (curConf.extra30m || (baseCost / 2)) * (p > 1 ? p : 1);
             let pCost = fullHours * baseCost + (extra30Blocks * extraRate);
             if (durationHours > 3 && !isHappy && curConf.hourRateIfMoreThan3h) {
                 pCost = Math.min(pCost, (curConf.hourRateIfMoreThan3h * p) * durationHours);

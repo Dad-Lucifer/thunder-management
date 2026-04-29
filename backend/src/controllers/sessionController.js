@@ -61,6 +61,11 @@ const getDeviceAvailability = async (req, res) => {
             .where('status', '==', 'active')
             .get();
 
+        const bookingsSnapshot = await db
+            .collection('bookings')
+            .where('status', '==', 'upcoming')
+            .get();
+
         const occupied = { ps: [], pc: [], vr: [], wheel: [], metabat: [] };
 
         snapshot.forEach(doc => {
@@ -70,12 +75,35 @@ const getDeviceAvailability = async (req, res) => {
                 const val = devices[k];
                 if (Array.isArray(val)) {
                     val.forEach(id => {
-                        if (id > 0 && occupied[k]) occupied[k].push(id);
+                        if (id > 0 && occupied[k] && !occupied[k].includes(id)) occupied[k].push(id);
                     });
-                } else if (typeof val === 'number' && val > 0 && occupied[k]) {
+                } else if (typeof val === 'number' && val > 0 && occupied[k] && !occupied[k].includes(val)) {
                     occupied[k].push(val);
                 }
             });
+        });
+
+        const requestStart = new Date();
+        const requestEnd = new Date(requestStart.getTime() + 1 * 60 * 60 * 1000); // 1 hr window
+
+        bookingsSnapshot.forEach(doc => {
+            const bData = doc.data();
+            const bStart = bData.bookingTime?.toDate ? bData.bookingTime.toDate() : new Date(bData.bookingTime);
+            const bEnd = bData.bookingEndTime?.toDate ? bData.bookingEndTime.toDate() : new Date(bData.bookingEndTime || bStart.getTime() + 60 * 60 * 1000);
+            
+            if (bStart < requestEnd && bEnd > requestStart) {
+                const devices = bData.devices || {};
+                Object.keys(devices).forEach(k => {
+                    const val = devices[k];
+                    if (Array.isArray(val)) {
+                        val.forEach(id => {
+                            if (id > 0 && occupied[k] && !occupied[k].includes(id)) occupied[k].push(id);
+                        });
+                    } else if (typeof val === 'number' && val > 0 && occupied[k] && !occupied[k].includes(val)) {
+                        occupied[k].push(val);
+                    }
+                });
+            }
         });
 
         res.status(200).json({
@@ -111,6 +139,11 @@ const createSession = async (req, res) => {
             .where('status', '==', 'active')
             .get();
 
+        const bookingsSnapshot = await db
+            .collection('bookings')
+            .where('status', '==', 'upcoming')
+            .get();
+
         const occupied = { ps: [], pc: [], vr: [], wheel: [], metabat: [] };
 
         snapshot.forEach(doc => {
@@ -119,18 +152,41 @@ const createSession = async (req, res) => {
                 const val = d[k];
                 if (Array.isArray(val)) {
                     val.forEach(id => {
-                        if (id > 0 && occupied[k]) occupied[k].push(id);
+                        if (id > 0 && occupied[k] && !occupied[k].includes(id)) occupied[k].push(id);
                     });
-                } else if (typeof val === 'number' && val > 0 && occupied[k]) {
+                } else if (typeof val === 'number' && val > 0 && occupied[k] && !occupied[k].includes(val)) {
                     occupied[k].push(val);
                 }
             });
         });
 
-        // Calculate base price using shared logic
+        // Calculate base price and duration logic first
         const durationVal = parseFloat(duration) || 1;
         const peopleVal = parseInt(peopleCount) || 1;
         const devicesVal = devices || {};
+
+        const requestStart = new Date();
+        const requestEnd = new Date(requestStart.getTime() + durationVal * 60 * 60 * 1000);
+
+        bookingsSnapshot.forEach(doc => {
+            const bData = doc.data();
+            const bStart = bData.bookingTime?.toDate ? bData.bookingTime.toDate() : new Date(bData.bookingTime);
+            const bEnd = bData.bookingEndTime?.toDate ? bData.bookingEndTime.toDate() : new Date(bData.bookingEndTime || bStart.getTime() + 60 * 60 * 1000);
+            
+            if (bStart < requestEnd && bEnd > requestStart) {
+                const d = bData.devices || {};
+                Object.keys(d).forEach(k => {
+                    const val = d[k];
+                    if (Array.isArray(val)) {
+                        val.forEach(id => {
+                            if (id > 0 && occupied[k] && !occupied[k].includes(id)) occupied[k].push(id);
+                        });
+                    } else if (typeof val === 'number' && val > 0 && occupied[k] && !occupied[k].includes(val)) {
+                        occupied[k].push(val);
+                    }
+                });
+            }
+        });
 
         const pricingConfig = await getPricingConfig();
         const basePrice = calculateSessionPrice(
@@ -323,8 +379,8 @@ const createBooking = async (req, res) => {
                 Object.keys(d).forEach(k => {
                     const val = d[k]; // { ps: [1, 2] } or { ps: 1 }
                     if (Array.isArray(val)) {
-                        val.forEach(id => { if (id) occupied[k].push(id); });
-                    } else if (typeof val === 'number' && val > 0) {
+                        val.forEach(id => { if (id && !occupied[k].includes(id)) occupied[k].push(id); });
+                    } else if (typeof val === 'number' && val > 0 && !occupied[k].includes(val)) {
                         occupied[k].push(val);
                     }
                 });
@@ -335,7 +391,7 @@ const createBooking = async (req, res) => {
         const bookings = await db.collection('bookings').where('status', '==', 'upcoming').get();
         bookings.forEach(doc => {
             const b = doc.data();
-            const bStart = b.bookingTime.toDate ? b.bookingTime.toDate() : new Date(b.bookingTime);
+            const bStart = b.bookingTime?.toDate ? b.bookingTime.toDate() : new Date(b.bookingTime);
             const bEnd = b.bookingEndTime?.toDate ? b.bookingEndTime.toDate() : new Date(b.bookingEndTime || bStart.getTime() + 60 * 60 * 1000);
 
             if (bStart < end && bEnd > start) {
@@ -343,8 +399,8 @@ const createBooking = async (req, res) => {
                 Object.keys(d).forEach(k => {
                     const val = d[k];
                     if (Array.isArray(val)) {
-                        val.forEach(id => { if (id) occupied[k].push(id); });
-                    } else if (typeof val === 'number' && val > 0) {
+                        val.forEach(id => { if (id && !occupied[k].includes(id)) occupied[k].push(id); });
+                    } else if (typeof val === 'number' && val > 0 && !occupied[k].includes(val)) {
                         occupied[k].push(val);
                     }
                 });
@@ -491,15 +547,15 @@ const getDeviceAvailabilityForTime = async (req, res) => {
 
         const occupied = { ps: [], pc: [], vr: [], wheel: [], metabat: [] };
 
-        // 1. Check Active Sessions overlap
+        // 1. Check Active Sessions
         const activeSessions = await db.collection('sessions').where('status', '==', 'active').get();
         activeSessions.forEach(doc => {
             const session = doc.data();
-            const start = new Date(session.startTime);
+            const sStart = new Date(session.startTime);
             const duration = session.duration || 1;
-            const end = new Date(start.getTime() + duration * 60 * 60 * 1000);
+            const sEnd = new Date(sStart.getTime() + duration * 60 * 60 * 1000);
 
-            if (start < requestEnd && end > requestStart) {
+            if (sStart < requestEnd && sEnd > requestStart) {
                 const d = session.devices || {};
                 Object.keys(d).forEach(k => {
                     const val = d[k];
@@ -512,14 +568,14 @@ const getDeviceAvailabilityForTime = async (req, res) => {
             }
         });
 
-        // 2. Check Upcoming Bookings overlap
+        // 2. Check Upcoming Bookings
         const upcomingBookings = await db.collection('bookings').where('status', '==', 'upcoming').get();
         upcomingBookings.forEach(doc => {
             const b = doc.data();
-            const start = b.bookingTime.toDate ? b.bookingTime.toDate() : new Date(b.bookingTime);
-            const end = b.bookingEndTime?.toDate ? b.bookingEndTime.toDate() : new Date(b.bookingEndTime || start.getTime() + 60 * 60 * 1000);
+            const bStart = b.bookingTime?.toDate ? b.bookingTime.toDate() : new Date(b.bookingTime);
+            const bEnd = b.bookingEndTime?.toDate ? b.bookingEndTime.toDate() : new Date(b.bookingEndTime || bStart.getTime() + 60 * 60 * 1000);
 
-            if (start < requestEnd && end > requestStart) {
+            if (bStart < requestEnd && bEnd > requestStart) {
                 const d = b.devices || {};
                 Object.keys(d).forEach(k => {
                     const val = d[k];

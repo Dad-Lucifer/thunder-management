@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import api from '../../utils/api';
 import { API_BASE_URL } from '../../utils/api';
 import { FaPlaystation, FaDesktop, FaVrCardboard, FaGamepad } from 'react-icons/fa';
@@ -116,7 +116,7 @@ const ActiveSessions = () => {
         const start = new Date(session.startTime).getTime();
         const totalDurationMs = session.duration * 60 * 60 * 1000;
         const end = start + totalDurationMs;
-        const remaining = end - currentTime;
+        const remaining = end - now;
 
         // If time is up by more than 30 seconds (-30000ms) AND it is fully paid
         // Strictly check that remainingAmount is 0 or less
@@ -143,7 +143,7 @@ const ActiveSessions = () => {
 
     }, 1000);
     return () => clearInterval(timer);
-  }, [sessions, selectedSession, currentTime]); // Added currentTime to deps
+  }, [sessions, selectedSession]);
 
   const isFunNight = isFunNightTime();
   const isNormalHour = isNormalHourTime();
@@ -272,15 +272,18 @@ const ActiveSessions = () => {
         })}
       </div>
 
-      {selectedSession && (
-        <UpdateSessionModal
-          session={selectedSession}
-          onClose={() => {
-            setSelectedSession(null);
-            fetchSessions(); // Refresh after update
-          }}
-        />
-      )}
+      {useMemo(() => {
+        if (!selectedSession) return null;
+        return (
+          <UpdateSessionModal
+            session={selectedSession}
+            onClose={() => {
+              setSelectedSession(null);
+              fetchSessions(); // Refresh after update
+            }}
+          />
+        );
+      }, [selectedSession])}
     </section>
   );
 };

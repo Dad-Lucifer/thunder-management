@@ -36,12 +36,19 @@ export const useSessionExport = () => {
 
             // 3. Auto-width columns (Simple heuristic)
             const wscols = [
+                { wch: 25 }, // Session Entry
+                { wch: 12 }, // Date
+                { wch: 10 }, // Time
                 { wch: 20 }, // Name
-                { wch: 15 }, // Number
+                { wch: 15 }, // Phone Number
+                { wch: 25 }, // Devices
+                { wch: 10 }, // Duration
+                { wch: 30 }, // Snacks
                 { wch: 15 }, // Session Renewed
-                { wch: 20 }, // Joined During
-                { wch: 15 }, // Actual Time
-                { wch: 35 }, // Started with Booking
+                { wch: 12 }, // Total Amount
+                { wch: 10 }, // Cash
+                { wch: 10 }, // Online
+                { wch: 15 }, // Joined During
             ];
             ws['!cols'] = wscols;
 

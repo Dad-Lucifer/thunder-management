@@ -236,6 +236,8 @@ const createSession = async (req, res) => {
             devices: devicesVal, // Store as is (arrays)
             price: finalPrice,
             paidAmount: 0,
+            cash: 0,
+            online: 0,
             remainingPeople: peopleVal,  // Initially all people are remaining
             remainingAmount: finalPrice,  // Initially full amount is remaining
             status: 'active',
@@ -503,8 +505,6 @@ const exportSessions = async (req, res) => {
 
             // Determine Time Category
             let timeCategory = 'Unknown';
-            // Note: exportSessions is sync for each map item, so we should fetch config ONCE outside the map
-            // I will move the config fetch outside.
             if (startTime && pricingConfigExport) {
                 if (isFunNightTime(startTime, pricingConfigExport)) timeCategory = 'Fun Night';
                 else if (isNormalHourTime(startTime, pricingConfigExport)) timeCategory = 'Normal Hour';
@@ -515,13 +515,46 @@ const exportSessions = async (req, res) => {
             // Session Renewed logic
             const isRenewed = (s.members && s.members.length > 0) || (s.updatedAt && s.updatedAt !== s.createdAt);
 
+            // Format snacks
+            let snacksStr = 'None';
+            if (s.snacks && Array.isArray(s.snacks) && s.snacks.length > 0) {
+                snacksStr = s.snacks.map(snack => `${snack.name} (${snack.quantity})`).join(', ');
+            }
+
+            // Format devices
+            let devicesStr = 'None';
+            if (s.devices && typeof s.devices === 'object') {
+                const deviceParts = [];
+                Object.entries(s.devices).forEach(([type, ids]) => {
+                    if (Array.isArray(ids) && ids.length > 0) {
+                        const typeLabel = type.toUpperCase();
+                        ids.forEach(id => {
+                            if (id) deviceParts.push(`${typeLabel}${id}`);
+                        });
+                    }
+                });
+                devicesStr = deviceParts.length > 0 ? deviceParts.join(', ') : 'None';
+            }
+
             return {
-                Name: s.customerName || 'N/A',
-                Number: s.contactNumber || 'N/A',
+                "Session Entry": startTime ? startTime.toISOString() : 'N/A',
+                "Date": startTime ? startTime.toLocaleDateString() : 'N/A',
+                "Time": startTime ? startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A',
+                "Name": s.customerName || 'N/A',
+                "Phone Number": s.contactNumber || 'N/A',
+                "Devices": devicesStr,
+                "Duration": (() => {
+                const hrs = s.duration || 0;
+                const h = Math.floor(hrs);
+                const m = Math.round((hrs - h) * 60);
+                return m > 0 ? `${h} hr ${m} min` : `${h} hr`;
+            })(),
+                "Snacks": snacksStr,
                 "Session Renewed": isRenewed ? "Yes" : "No",
-                "Joined During": timeCategory,
-                "Actual Time": startTime ? startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A',
-                "Session Started With Upcoming Booking": s.convertedFromBooking ? "Yes" : "No"
+                "Total Amount": s.price || 0,
+                "Cash": s.cash || 0,
+                "Online": s.online || 0,
+                "Joined During": timeCategory
             };
         });
 
@@ -674,10 +707,12 @@ const updateSession = async (req, res) => {
                 newCashAmount = (cashCount || 0) * amountPerPerson;
                 newOnlineAmount = (onlineCount || 0) * amountPerPerson;
             }
-        } else {
-            // Fallback for custom or direct payments if cashCount/onlineCount missing
-            // If we don't know the split, we could default to cash or just not update split fields
-            // For now, let's assume if it's not equal split with counts, we rely on existing logic (or add fields later)
+        } else if (paymentMode === 'custom' && currentPayment > 0) {
+            if (cashCount > 0 && onlineCount === 0) {
+                newCashAmount = currentPayment;
+            } else if (onlineCount > 0 && cashCount === 0) {
+                newOnlineAmount = currentPayment;
+            }
         }
 
         // Remaining amount is simply: Total - What's been paid
@@ -908,6 +943,8 @@ const convertBookingsToSessions = async (req, res) => {
                     devices: booking.devices || {},
                     price: calculatedPrice,
                     paidAmount: 0,
+                    cash: 0,
+                    online: 0,
                     remainingPeople: finalPeopleCount,  // Initially all people are remaining
                     remainingAmount: calculatedPrice,
                     status: 'active',
@@ -1020,6 +1057,8 @@ const startBooking = async (req, res) => {
             devices: booking.devices || {},
             price: calculatedPrice,
             paidAmount: 0,
+            cash: 0,
+            online: 0,
             remainingPeople: finalPeopleCount,
             remainingAmount: calculatedPrice,
             status: 'active',

@@ -184,7 +184,7 @@ const TopNavbar = () => {
             >
               <div className="profile-info">
                 <span className="profile-name">{user?.username || 'Admin'}</span>
-                <span className="profile-role">{user?.role.toUpperCase() || 'OWNER'}</span>
+                <span className="profile-role">{user?.role?.toLowerCase() === 'employee' ? 'CREWMATE' : (user?.role?.toUpperCase() || 'OWNER')}</span>
               </div>
               <FaUserCircle size={32} color="rgba(255,255,255,0.8)" />
             </motion.div>

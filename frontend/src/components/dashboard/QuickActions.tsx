@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import { FaRocket, FaChevronRight } from 'react-icons/fa';
+import { FaRocket, FaChevronRight, FaCookie } from 'react-icons/fa';
 import { GiCrossedSwords } from 'react-icons/gi';
 import './QuickActions.css';
 
 import SessionEntryModal from './SessionEntryModal';
 import PlayersBattleModal from './PlayersBattleModal';
+import InhouseSnacks from './InhouseSnacks';
 
 const QuickActions = () => {
-    const [activeModal, setActiveModal] = useState<'session' | 'battle' | null>(null);
+    const [activeModal, setActiveModal] = useState<'session' | 'battle' | 'snacks' | null>(null);
 
     return (
         <>
@@ -45,6 +46,23 @@ const QuickActions = () => {
                         <FaChevronRight />
                     </div>
                 </div>
+
+                {/* Inhouse Snacks Action */}
+                <div
+                    className="action-card snacks"
+                    onClick={() => setActiveModal('snacks')}
+                >
+                    <div className="action-icon-wrapper">
+                        <FaCookie />
+                    </div>
+                    <div className="action-content">
+                        <h3 className="action-title">Inhouse Snacks</h3>
+                        <p className="action-desc">Sell snacks without a game session</p>
+                    </div>
+                    <div className="action-arrow">
+                        <FaChevronRight />
+                    </div>
+                </div>
             </div>
 
             {/* Modals */}
@@ -55,6 +73,11 @@ const QuickActions = () => {
 
             <PlayersBattleModal
                 isOpen={activeModal === 'battle'}
+                onClose={() => setActiveModal(null)}
+            />
+
+            <InhouseSnacks
+                isOpen={activeModal === 'snacks'}
                 onClose={() => setActiveModal(null)}
             />
         </>

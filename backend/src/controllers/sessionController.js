@@ -1090,6 +1090,68 @@ const startBooking = async (req, res) => {
     }
 };
 
+const createSnackOnlySession = async (req, res) => {
+    try {
+        const { customerName, snacks, totalAmount, paymentMethod } = req.body;
+
+        if (!customerName || !snacks || !Array.isArray(snacks) || snacks.length === 0) {
+            return res.status(400).json({ message: 'Customer name and at least one snack are required.' });
+        }
+
+        const total = parseFloat(totalAmount) || 0;
+
+        // Deduct stock
+        const stockItems = snacks.map(s => ({ name: s.name, quantity: s.qty }));
+        await snackService.deductStock(stockItems);
+
+        // Determine cash/online split
+        let cash = 0;
+        let online = 0;
+        if (paymentMethod === 'cash') {
+            cash = total;
+        } else if (paymentMethod === 'online') {
+            online = total;
+        } else if (paymentMethod === 'split') {
+            // 50/50 split if not otherwise specified
+            cash = Math.round(total / 2);
+            online = total - cash;
+        }
+
+        // Format snack details for storage
+        const snackDetails = snacks.map(s => ({ name: s.name, quantity: s.qty }));
+
+        const now = new Date().toISOString();
+        const newSession = {
+            customerName,
+            customerNameLower: customerName.toLowerCase(),
+            contactNumber: '',
+            duration: 0,
+            peopleCount: 1,
+            gameName: 'Snacks Only',
+            snacks: snackDetails,
+            devices: {},
+            price: total,
+            paidAmount: total,
+            cash,
+            online,
+            remainingPeople: 0,
+            remainingAmount: 0,
+            status: 'completed',
+            startTime: now,
+            completedAt: now,
+            createdAt: now,
+            isSnackOnly: true
+        };
+
+        await db.collection('sessions').add(newSession);
+
+        res.status(201).json({ message: 'Inhouse snack order recorded successfully.' });
+    } catch (error) {
+        console.error('❌ createSnackOnlySession error:', error);
+        res.status(500).json({ message: 'Failed to record snack order.' });
+    }
+};
+
 module.exports = {
     createSession,
     getActiveSessions,
@@ -1104,5 +1166,6 @@ module.exports = {
     deleteBooking,
     convertBookingsToSessions,
     autoConvertBookings,
-    startBooking // Export
+    startBooking,
+    createSnackOnlySession
 };

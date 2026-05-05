@@ -18,6 +18,7 @@ import OwnerPieCharts from '../components/owner/OwnerPieCharts';
 import DeletionLogs from '../components/owner/DeletionLogs';
 import SnackOverview from '../components/owner/SnackOverview'; // Import SnackOverview
 import { useSessionExport } from '../components/owner/ExportSessionsReport';
+import UserManagement from '../components/owner/UserManagement';
 
 import './OwnerDashboard.css';
 
@@ -28,6 +29,7 @@ interface KPIStat {
 }
 
 const OwnerDashboard: React.FC = () => {
+    const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
     const [timeFilter, setTimeFilter] = useState('Today');
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
 
@@ -127,6 +129,12 @@ const OwnerDashboard: React.FC = () => {
                             label={exportLoading ? "Exporting..." : "Export"}
                             onClick={handleDownload}
                             variant="primary"
+                        />
+                        <ActionButton
+                            icon={FaUserCog}
+                            label="Manage User"
+                            onClick={() => setIsUserManagementOpen(true)}
+                            variant="ghost"
                         />
                     </div>
                 </motion.header>
@@ -238,6 +246,11 @@ const OwnerDashboard: React.FC = () => {
                 </section>
 
             </div>
+
+            <UserManagement 
+                isOpen={isUserManagementOpen} 
+                onClose={() => setIsUserManagementOpen(false)} 
+            />
         </DashboardLayout>
     );
 };

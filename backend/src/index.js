@@ -33,6 +33,7 @@ app.use('/api/snacks', snackRoutes);
 app.use('/api/pricing', require('./routes/pricingRoutes'));
 
 app.use('/api/customers', searchCustomer);
+app.use('/api/users', require('./routes/userRoutes'));
 
 
 

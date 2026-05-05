@@ -115,3 +115,28 @@
     color: #fff;
     transform: translateX(6px);
 }
+
+/* Specific Card - Snacks */
+.action-card.snacks {
+    background: linear-gradient(135deg, rgba(120, 53, 15, 0.15) 0%, rgba(15, 23, 42, 0.6) 100%);
+    border-color: rgba(251, 146, 60, 0.2);
+}
+
+.action-card.snacks:hover {
+    border-color: #fb923c;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 0 15px rgba(251, 146, 60, 0.2);
+}
+
+.action-card.snacks:hover .action-icon-wrapper {
+    background: linear-gradient(135deg, #ea580c, #fb923c);
+    color: white;
+    box-shadow: 0 0 20px rgba(251, 146, 60, 0.4);
+    transform: scale(1.1) rotate(-3deg);
+}
+
+/* Make the grid allow 3 columns on wide enough screens */
+@media (min-width: 1024px) {
+    .quick-actions-container {
+        grid-template-columns: 1fr 1fr 1fr;
+    }
+}

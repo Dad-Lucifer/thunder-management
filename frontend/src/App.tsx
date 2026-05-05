@@ -1,6 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
-import Signup from './pages/Signup';
 import EmployeeDashboard from './pages/EmployeeDashboard';
 import Analytics from './pages/Analytics';
 import OwnerDashboard from './pages/OwnerDashboard';
@@ -8,12 +7,18 @@ import PricingConfigPage from './pages/PricingConfig';
 import DashboardLayout from './layouts/DashboardLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 
+const BlockedSignup = () => (
+  <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#000', color: '#fff', fontFamily: 'Manrope, sans-serif', gap: '20px' }}>
+    <span style={{ fontSize: '1.5rem' }}>Ye konse gali mai aagaye aap sir ?</span>
+    <a href="/login" style={{ color: '#00F0FF', textDecoration: 'underline', fontSize: '1rem' }}>Go back to Signin</a>
+  </div>
+);
 
 function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<Signup />} />
+      <Route path="/signup" element={<BlockedSignup />} />
 
       {/* Protected Routes */}
       <Route element={<ProtectedRoute />}>

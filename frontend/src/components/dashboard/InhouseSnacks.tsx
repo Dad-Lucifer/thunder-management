@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaTimes, FaShoppingBag, FaMoneyBillWave, FaQrcode, FaExchangeAlt, FaCheck } from 'react-icons/fa';
+import { FaTimes, FaShoppingBag, FaMoneyBillWave, FaQrcode, FaCheck } from 'react-icons/fa';
 import SnackSelector from './SnackSelector';
 import api from '../../utils/api';
 import './InhouseSnacks.css';

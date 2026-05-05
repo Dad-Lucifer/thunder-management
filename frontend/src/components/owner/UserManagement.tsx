@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaTimes, FaUsers, FaUserPlus, FaUserShield, FaUserEdit, FaTrash } from 'react-icons/fa';
+import { FaTimes, FaUsers, FaUserPlus, FaUserShield, FaTrash } from 'react-icons/fa';
 import { auth } from '../../config/firebase';
 import './UserManagement.css';
 

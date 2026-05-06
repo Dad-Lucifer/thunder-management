@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { GiCrossedSwords, GiTrophyCup } from 'react-icons/gi';
 import { FaFire } from 'react-icons/fa';
-import axios from 'axios';
+import api, { API_BASE_URL } from '../../utils/api';
 import { io } from 'socket.io-client';
 import './ActiveBattles.css';
 
@@ -23,7 +23,7 @@ interface Battle {
 /* -------------------- Socket -------------------- */
 
 // create socket ONCE
-const socket = io('https://thunder-management.onrender.com', {
+const socket = io(API_BASE_URL, {
     transports: ['websocket']
 });
 
@@ -36,7 +36,7 @@ const ActiveBattles = () => {
 
     const fetchBattles = async () => {
         try {
-            const res = await axios.get('https://thunder-management.onrender.com/api/battles/active');
+            const res = await api.get('/api/battles/active');
             setBattles(res.data);
         } catch (error) {
             console.error('❌ Failed to fetch battles:', error);
@@ -91,8 +91,8 @@ const ActiveBattles = () => {
                 )
             );
 
-            await axios.post(
-                `https://thunder-management.onrender.com/api/battles/score/${id}`,
+            await api.post(
+                `/api/battles/score/${id}`,
                 { player }
             );
         } catch (error) {
@@ -105,8 +105,8 @@ const ActiveBattles = () => {
         if (!window.confirm('End this battle?')) return;
 
         try {
-            await axios.post(
-                `https://thunder-management.onrender.com/api/battles/finish/${id}`
+            await api.post(
+                `/api/battles/finish/${id}`
             );
             // removal handled by socket event
         } catch (error) {

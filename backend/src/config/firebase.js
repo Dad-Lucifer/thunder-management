@@ -34,6 +34,13 @@ try {
 } catch (e) {
     console.error('Error initializing Firestore:', e);
 }
-const auth = admin.auth();
+let auth = null;
+try {
+    if (admin.apps.length > 0) {
+        auth = admin.auth();
+    }
+} catch (e) {
+    console.error('Error initializing Auth:', e);
+}
 
 module.exports = { admin, db, auth };

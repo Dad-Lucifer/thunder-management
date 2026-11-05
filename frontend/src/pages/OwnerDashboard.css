@@ -23,9 +23,8 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 2rem;
-    flex-wrap: wrap;
-    gap: 1rem;
+    margin-bottom: 1.25rem;
+    gap: 1.5rem;
 }
 
 .header-title {
@@ -34,6 +33,7 @@
     margin: 0;
     background: linear-gradient(to right, #fff, #cbd5e1);
     background-clip: text;
+    -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     letter-spacing: -1px;
 }
@@ -56,12 +56,90 @@
     padding: 0.5rem 1.5rem;
     border-radius: 12px;
     background: rgba(0, 0, 0, 0.3);
+    min-width: 150px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
 }
 
 .header-actions {
     display: flex;
     gap: 1rem;
     align-items: center;
+    flex-shrink: 0;
+}
+
+/* --- 1b. Fixed Position Filter & Period Bar --- */
+.dashboard-filter-bar {
+    position: relative;
+    z-index: 50;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(30, 41, 59, 0.4);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 0.75rem 1.25rem;
+    margin-bottom: 2rem;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    gap: 1rem;
+    min-height: 64px;
+    box-sizing: border-box;
+}
+
+.filter-bar-left {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+}
+
+.month-selector-wrapper {
+    position: relative;
+    z-index: 51;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+}
+
+.day-filter-wrapper {
+    display: flex;
+    align-items: center;
+    min-height: 38px;
+}
+
+.archive-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 10px;
+    background: rgba(148, 163, 184, 0.1);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    color: #cbd5e1;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.archive-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #a78bfa;
+    box-shadow: 0 0 8px rgba(167, 139, 250, 0.6);
+}
+
+.filter-bar-right {
+    display: flex;
+    align-items: center;
+    color: var(--text-gray);
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+.reporting-period-label strong {
+    color: #f1f5f9;
+    font-weight: 600;
 }
 
 /* --- 2. Hero Stats Grid --- */
@@ -70,12 +148,12 @@
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 1.5rem;
     margin-bottom: 2rem;
+    min-height: 110px;
 }
 
 /* --- 3. Operational Grid (Revenue + Floor) --- */
 .operational-grid {
     display: grid;
-    /* Mimics Analytics grid structure */
     grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
     gap: 1.5rem;
     margin-bottom: 2rem;
@@ -86,7 +164,6 @@
     min-width: 0;
     height: 100%;
     min-height: 450px;
-    /* Consistent minimum height */
     display: flex;
     flex-direction: column;
 }
@@ -96,21 +173,15 @@
     margin-top: 1rem;
     width: 100%;
     position: relative;
-    /* Ensure chart has height when stacked */
 }
-
-/* Floor Status Widget Styles */
-/* ... existing styles ... */
 
 .floor-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    /* Better adaptive columns */
     gap: 1rem;
     overflow-y: auto;
     padding-right: 5px;
     flex: 1;
-    overflow-y: auto;
 }
 
 /* --- 4. Secondary Grid (Pie + Txn) --- */
@@ -153,6 +224,31 @@
     border: 1px solid var(--glass-border);
     padding: 0.75rem;
     border-radius: 8px;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+/* Clickable state */
+.txn-item--clickable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.txn-item--clickable:hover {
+    background: rgba(139, 92, 246, 0.07);
+    border-color: rgba(139, 92, 246, 0.25);
+    transform: translateX(2px);
+}
+
+.txn-item--clickable:focus-visible {
+    outline: 2px solid rgba(139, 92, 246, 0.6);
+    outline-offset: 2px;
+}
+
+/* Selected / active state */
+.txn-item--selected {
+    background: rgba(139, 92, 246, 0.1);
+    border-color: rgba(139, 92, 246, 0.4);
+    border-left: 3px solid #8b5cf6;
 }
 
 .txn-left {
@@ -237,20 +333,42 @@
     }
 }
 
-/* Scrollbar refinement */
-.custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+    .dashboard-header {
+        flex-wrap: wrap;
+    }
+    .dashboard-filter-bar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .filter-bar-right {
+        width: 100%;
+        justify-content: flex-end;
+    }
 }
 
-.custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 3px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
+@media (max-width: 768px) {
+    .dashboard-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    .header-center {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+    }
+    .header-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+    .filter-bar-left {
+        flex-direction: column;
+        align-items: flex-start;
+        width: 100%;
+    }
+    .filter-bar-right {
+        justify-content: flex-start;
+    }
 }

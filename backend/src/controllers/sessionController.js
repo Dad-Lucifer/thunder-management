@@ -2,6 +2,7 @@ const { db } = require('../config/firebase');
 const deviceLimits = require("../config/deviceLimit");
 const { calculateSessionPrice, isHappyHourTime, isFunNightTime, isNormalHourTime } = require('../utils/pricing');
 const snackService = require('../services/snackService'); // Import SnackService
+const { resolveReportingPeriod } = require('../utils/reportingPeriods');
 
 // Helper to transform device counts object to array of objects for frontend
 const transformDevicesToArray = (deviceData) => {
@@ -488,12 +489,35 @@ const getUpcomingBookings = async (req, res) => {
 
 const exportSessions = async (req, res) => {
     try {
-        if (!db) return res.status(500).json({ message: 'Database not initialized' });
+        const { month, range, dayFilter, subFilter } = req.query;
+        const period = resolveReportingPeriod(month || range, dayFilter || subFilter);
 
-        // Fetch last 2000 sessions (active & completed)
+        if (period && period.error) {
+            return res.status(403).json({ message: period.message });
+        }
+
+        const reportTitle = period.subFilter && period.subFilter !== 'all'
+            ? `SB GAMING DATABASE [ ${period.title} - ${period.dateLabel || period.name.toUpperCase()} ]`
+            : `SB GAMING DATABASE [ ${period.name.toUpperCase()} ]`;
+
+        if (!db) {
+            return res.status(200).json({
+                title: reportTitle,
+                monthName: period.name,
+                year: period.year,
+                label: period.label,
+                subFilter: period.subFilter,
+                totalRecords: 0,
+                data: []
+            });
+        }
+
+        // Fetch sessions strictly belonging to the selected month:
+        // timestamp >= monthStart AND timestamp < nextMonthStart
         const snapshot = await db.collection('sessions')
+            .where('createdAt', '>=', period.start.toISOString())
+            .where('createdAt', '<', period.end.toISOString())
             .orderBy('createdAt', 'desc')
-            .limit(2000)
             .get();
 
         const pricingConfigExport = await getPricingConfig();
@@ -558,7 +582,15 @@ const exportSessions = async (req, res) => {
             };
         });
 
-        res.status(200).json(data);
+        res.status(200).json({
+            title: reportTitle,
+            monthName: period.name,
+            year: period.year,
+            label: period.label,
+            subFilter: period.subFilter,
+            totalRecords: data.length,
+            data
+        });
 
     } catch (error) {
         console.error('❌ Export sessions error:', error);

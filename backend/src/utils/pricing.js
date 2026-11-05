@@ -1,9 +1,10 @@
+const { istDay, istHour, istMinute } = require('./istTime');
 // ---------------- TIME HELPERS ----------------
 const isHappyHourTime = (date = new Date(), config) => {
     if (!config) return false;
-    const day = date.getDay(); // 0 = Sun, 6 = Sat
-    const hours = date.getHours();
-    const minutes = date.getMinutes();
+    const day = istDay(date); // 0 = Sun, 6 = Sat
+    const hours = istHour(date);
+    const minutes = istMinute(date);
     const check = config.happyHour;
     const isMonWed = day >= 1 && day <= 3;
     const isThursday = day === 4;
@@ -30,8 +31,8 @@ const isHappyHourTime = (date = new Date(), config) => {
 };
 const isFunNightTime = (date = new Date(), config) => {
     if (!config) return false;
-    const hours = date.getHours();
-    const minutes = date.getMinutes();
+    const hours = istHour(date);
+    const minutes = istMinute(date);
     const check = config.funNight;
     if (check.startHour > check.endHour) {
         return hours > check.startHour || (hours === check.startHour && minutes >= check.startMinute) || hours < check.endHour || (hours === check.endHour && minutes < check.endMinute);
@@ -41,9 +42,9 @@ const isFunNightTime = (date = new Date(), config) => {
 };
 const isNormalHourTime = (date = new Date(), config) => {
     if (!config) return false;
-    const day = date.getDay();
-    const hours = date.getHours();
-    const minutes = date.getMinutes();
+    const day = istDay(date);
+    const hours = istHour(date);
+    const minutes = istMinute(date);
     const isMonWed = day >= 1 && day <= 3;
     const isThursday = day === 4;
     const isFriSun = day === 5 || day === 6 || day === 0;
@@ -152,7 +153,7 @@ const calculateSessionPrice = (
     };
     grandTotal += numVR * getPriceForSpecs(vrConf, 1);
     grandTotal += numMetaBat * getPriceForSpecs(metabatConf || vrConf, 1);
-    const day = startTime.getDay();
+    const day = istDay(startTime);
     const isMonWed = day >= 1 && day <= 3;
     const isThursday = day === 4;
     const dayPrices = isMonWed ? config.monWedPrices : (isThursday ? config.thursdayPrices : config.friSunPrices);
@@ -365,7 +366,7 @@ const calculateRevenueByMachine = (
             }
         }
     }
-    const day = startTime.getDay();
+    const day = istDay(startTime);
     const isMonWed = day >= 1 && day <= 3;
     const isThursday = day === 4;
     const dayPrices = isMonWed ? config.monWedPrices : (isThursday ? config.thursdayPrices : config.friSunPrices);

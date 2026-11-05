@@ -1,38 +1,38 @@
-
 import React from 'react';
 import { motion } from 'framer-motion';
 import { FaArrowUp, FaArrowDown } from 'react-icons/fa';
 import './ModernUI.css';
+import '../owner-shared.css';
 
 // --- Base Container ---
-export const GlassCard = ({ children, className = "", delay = 0 }: { children: React.ReactNode, className?: string, delay?: number }) => (
+export const GlassCard = React.memo(({ children, className = "", delay = 0 }: { children: React.ReactNode, className?: string, delay?: number }) => (
     <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay, ease: "easeOut" }}
+        transition={{ duration: 0.3, delay, ease: "easeOut" }}
         className={`modern-glass-panel ${className}`}
     >
         {children}
     </motion.div>
-);
+));
 
 // --- Typography ---
-export const GradientTitle = ({ children, size = "large" }: { children: React.ReactNode, size?: "large" | "medium" }) => (
+export const GradientTitle = React.memo(({ children, size = "large" }: { children: React.ReactNode, size?: "large" | "medium" }) => (
     <h2 className={`modern-title ${size === 'large' ? 'text-2xl' : 'text-xl'}`}>
         {children}
     </h2>
-);
+));
 
 // --- Indicators ---
-export const TrendBadge = ({ value, isPositive }: { value: string | number, isPositive: boolean }) => (
+export const TrendBadge = React.memo(({ value, isPositive }: { value: string | number, isPositive: boolean }) => (
     <div className={`modern-badge ${isPositive ? 'positive' : 'negative'}`}>
         {isPositive ? <FaArrowUp size={10} /> : <FaArrowDown size={10} />}
         {value}%
     </div>
-);
+));
 
 // --- Interactive Elements ---
-export const TabGroup = ({ options, active, onChange }: { options: string[], active: string, onChange: (o: string) => void }) => (
+export const TabGroup = React.memo(({ options, active, onChange }: { options: readonly string[] | string[], active: string, onChange: (o: string) => void }) => (
     <div className="modern-tabs">
         {options.map(opt => (
             <button
@@ -44,9 +44,9 @@ export const TabGroup = ({ options, active, onChange }: { options: string[], act
             </button>
         ))}
     </div>
-);
+));
 
-export const ActionButton = ({ icon: Icon, label, onClick, variant = 'primary' }: { icon: any, label: string, onClick?: () => void, variant?: 'primary' | 'ghost' }) => (
+export const ActionButton = React.memo(({ icon: Icon, label, onClick, variant = 'primary' }: { icon: any, label: string, onClick?: () => void, variant?: 'primary' | 'ghost' }) => (
     <motion.button
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
@@ -56,7 +56,7 @@ export const ActionButton = ({ icon: Icon, label, onClick, variant = 'primary' }
         <Icon size={16} />
         {label}
     </motion.button>
-);
+));
 
 // --- Stats ---
 interface QuickStatProps {
@@ -67,7 +67,7 @@ interface QuickStatProps {
     delay?: number;
 }
 
-export const QuickStat = ({ label, value, trend, icon: Icon, delay }: QuickStatProps) => (
+export const QuickStat = React.memo(({ label, value, trend, icon: Icon, delay }: QuickStatProps) => (
     <GlassCard delay={delay} className="stat-card-wrapper">
         <div className="stat-icon-bg">
             <Icon size={24} />
@@ -82,4 +82,4 @@ export const QuickStat = ({ label, value, trend, icon: Icon, delay }: QuickStatP
             <h3 className="stat-value">{value}</h3>
         </div>
     </GlassCard>
-);
+));

@@ -3,6 +3,7 @@ import { ResponsiveContainer, PieChart, Pie, Cell, Sector } from 'recharts';
 import { motion } from 'framer-motion';
 import { FaTrophy, FaChartPie, FaSpinner } from 'react-icons/fa';
 import { GlassCard, GradientTitle } from './ui/ModernComponents';
+import type { ReportingMonth, DayFilter } from '../../utils/reportingPeriods';
 
 // --- Constants & Config ---
 const COLORS = [
@@ -27,7 +28,9 @@ interface PieData {
 }
 
 interface Props {
-    timeFilter: string;
+    timeFilter?: string;
+    selectedMonth?: ReportingMonth;
+    dayFilter?: DayFilter;
 }
 
 // --- Helper Components ---
@@ -86,7 +89,7 @@ const renderActiveShape = (props: any) => {
 };
 
 // --- Main Component ---
-const OwnerPieCharts: React.FC<Props> = ({ timeFilter }) => {
+const OwnerPieCharts: React.FC<Props> = ({ timeFilter, selectedMonth, dayFilter }) => {
     const [data, setData] = useState<PieData[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeIndex, setActiveIndex] = useState(0);
@@ -99,10 +102,11 @@ const OwnerPieCharts: React.FC<Props> = ({ timeFilter }) => {
         const fetchRevenue = async () => {
             try {
                 setLoading(true);
-                const range = timeFilter.toLowerCase().replace(' ', '');
-                // Using the optimized endpoint
+                const queryParam = selectedMonth
+                    ? `month=${encodeURIComponent(selectedMonth.key)}${dayFilter ? `&dayFilter=${encodeURIComponent(dayFilter)}` : ''}`
+                    : `range=${(timeFilter || 'today').toLowerCase().replace(' ', '')}`;
                 const res = await fetch(
-                    `/api/owner/revenue-by-machine?range=${range}`
+                    `/api/owner/revenue-by-machine?${queryParam}`
                 );
                 const result = await res.json();
 
@@ -119,11 +123,11 @@ const OwnerPieCharts: React.FC<Props> = ({ timeFilter }) => {
         };
 
         fetchRevenue();
-    }, [timeFilter]);
+    }, [timeFilter, selectedMonth, dayFilter]);
 
     // Derived Stats
     const totalRevenue = useMemo(() => data.reduce((acc, curr) => acc + curr.value, 0), [data]);
-    const topPerformer = data.length > 0 ? data[0] : null;
+    const topPerformer = useMemo(() => (data.length > 0 ? data[0] : null), [data]);
 
     return (
         <GlassCard className="flex flex-col h-full min-h-[400px]">
@@ -156,7 +160,7 @@ const OwnerPieCharts: React.FC<Props> = ({ timeFilter }) => {
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie
-                                    // @ts-ignore
+                                    // @ts-expect-error recharts type mismatch on activeIndex
                                     activeIndex={activeIndex}
                                     activeShape={renderActiveShape}
                                     data={data}
@@ -189,11 +193,7 @@ const OwnerPieCharts: React.FC<Props> = ({ timeFilter }) => {
 
                         {/* Top Performer Card */}
                         {topPerformer && (
-                            <motion.div
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                className="bg-gradient-to-r from-amber-500/20 to-orange-500/10 border border-amber-500/30 rounded-xl p-4 flex items-center gap-4"
-                            >
+                            <div className="bg-gradient-to-r from-amber-500/20 to-orange-500/10 border border-amber-500/30 rounded-xl p-4 flex items-center gap-4 top-performer-fade">
                                 <div className="p-3 bg-amber-500/20 rounded-lg text-amber-400">
                                     <FaTrophy size={20} />
                                 </div>
@@ -204,18 +204,15 @@ const OwnerPieCharts: React.FC<Props> = ({ timeFilter }) => {
                                         Generates <span className="text-white font-medium">{totalRevenue > 0 ? ((topPerformer.value / totalRevenue) * 100).toFixed(0) : 0}%</span> of total revenue
                                     </p>
                                 </div>
-                            </motion.div>
+                            </div>
                         )}
 
                         {/* Detailed List */}
                         <div className="flex flex-col gap-2 mt-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
                             {data.map((entry, index) => (
-                                <motion.div
+                                <div
                                     key={entry.name}
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: index * 0.1 }}
-                                    className={`flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer ${activeIndex === index
+                                    className={`flex items-center justify-between p-3 rounded-lg border transition-colors cursor-pointer ${activeIndex === index
                                         ? 'bg-white/10 border-white/20'
                                         : 'bg-white/5 border-transparent hover:bg-white/10'
                                         }`}
@@ -234,7 +231,7 @@ const OwnerPieCharts: React.FC<Props> = ({ timeFilter }) => {
                                         <div className="text-sm font-bold text-white">₹{(entry.value || 0).toLocaleString()}</div>
                                         <div className="text-xs text-slate-400">{totalRevenue > 0 ? ((entry.value / totalRevenue) * 100).toFixed(1) : 0}%</div>
                                     </div>
-                                </motion.div>
+                                </div>
                             ))}
                         </div>
                     </div>
@@ -244,4 +241,4 @@ const OwnerPieCharts: React.FC<Props> = ({ timeFilter }) => {
     );
 };
 
-export default OwnerPieCharts;
+export default React.memo(OwnerPieCharts);

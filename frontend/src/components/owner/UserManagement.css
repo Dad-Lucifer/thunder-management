@@ -381,3 +381,32 @@
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
+
+
+.um-password-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.um-password-wrapper .um-input {
+    padding-right: 2.75rem;
+}
+
+.um-password-toggle {
+    position: absolute;
+    right: 0.75rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: color 0.2s ease;
+}
+
+.um-password-toggle:hover {
+    color: #8b5cf6;
+}

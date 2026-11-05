@@ -1,0 +1,142 @@
+/* MonthSelector.css - Cyber Glassmorphism Dropdown */
+
+.month-selector-container {
+  position: relative;
+  z-index: 52;
+  display: inline-block;
+  user-select: none;
+  font-family: inherit;
+}
+
+.month-selector-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 1.1rem;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  border-radius: 12px;
+  color: #f1f5f9;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transform: translateZ(0);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+.month-selector-btn:hover {
+  background: rgba(139, 92, 246, 0.15);
+  border-color: rgba(139, 92, 246, 0.6);
+  box-shadow: 0 0 15px rgba(139, 92, 246, 0.25);
+  color: #ffffff;
+}
+
+.month-selector-btn:focus-visible {
+  outline: 2px solid #8b5cf6;
+  outline-offset: 2px;
+}
+
+.month-icon {
+  color: #a78bfa;
+  font-size: 0.95rem;
+  transition: transform 0.2s ease;
+}
+
+.month-chevron {
+  color: #94a3b8;
+  font-size: 0.75rem;
+  margin-left: 0.2rem;
+  transition: transform 0.25s ease;
+}
+
+.month-chevron.open {
+  transform: rotate(180deg);
+  color: #c084fc;
+}
+
+.month-badge {
+  display: inline-block;
+  font-size: 0.68rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 9999px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  margin-left: 0.35rem;
+}
+
+.month-badge.current {
+  background: rgba(139, 92, 246, 0.25);
+  color: #c084fc;
+  border: 1px solid rgba(139, 92, 246, 0.4);
+}
+
+.month-badge.previous {
+  background: rgba(100, 116, 139, 0.2);
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+/* Dropdown Menu */
+.month-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: auto;
+  min-width: 240px;
+  background: #0f172a;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 14px;
+  padding: 0.4rem;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(139, 92, 246, 0.15);
+  z-index: 1000;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transform: translateZ(0);
+}
+
+.month-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: #e2e8f0;
+  font-size: 0.86rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+  position: relative;
+  z-index: 1001;
+}
+
+.month-dropdown-item:hover {
+  background: rgba(139, 92, 246, 0.18);
+  color: #ffffff;
+  transform: translateX(2px);
+}
+
+.month-dropdown-item.active {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.35), rgba(99, 102, 241, 0.25));
+  border: 1px solid rgba(139, 92, 246, 0.5);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.month-dropdown-item .item-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.month-dropdown-item .check-icon {
+  color: #a78bfa;
+  font-size: 0.8rem;
+}

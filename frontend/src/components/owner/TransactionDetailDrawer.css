@@ -1,0 +1,448 @@
+/* ============================================================
+   TransactionDetailDrawer.css
+   Slide-in detail drawer for the Recent Transactions panel.
+   Dark glassmorphism — matches owner dashboard theme.
+   ============================================================ */
+
+/* ── Overlay ──────────────────────────────────────────────── */
+.tdd-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+}
+
+/* ── Drawer panel ─────────────────────────────────────────── */
+.tdd-drawer {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 380px;
+    max-width: 92vw;
+    background: rgba(10, 15, 30, 0.97);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-left: 1px solid rgba(139, 92, 246, 0.2);
+    display: flex;
+    flex-direction: column;
+    will-change: transform;
+    transform: translateZ(0);
+    box-shadow: -8px 0 40px rgba(0, 0, 0, 0.5);
+}
+
+/* ── Header ───────────────────────────────────────────────── */
+.tdd-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 20px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    flex-shrink: 0;
+}
+
+.tdd-header-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(139, 92, 246, 0.9);
+}
+
+.tdd-close-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.tdd-close-btn:hover {
+    background: rgba(139, 92, 246, 0.2);
+    border-color: rgba(139, 92, 246, 0.4);
+    color: #fff;
+}
+
+/* ── Scrollable body ──────────────────────────────────────── */
+.tdd-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0 24px;
+}
+
+/* ── Sections ─────────────────────────────────────────────── */
+.tdd-section {
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tdd-section:last-of-type {
+    border-bottom: none;
+}
+
+.tdd-section-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #8b5cf6;
+    margin: 0 0 12px;
+}
+
+/* ── Player card ──────────────────────────────────────────── */
+.tdd-player-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.tdd-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7c3aed, #4f46e5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.35);
+}
+
+.tdd-player-info {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+}
+
+.tdd-player-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.tdd-player-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #f1f5f9;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tdd-station-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 7px;
+    border-radius: 6px;
+    background: rgba(139, 92, 246, 0.2);
+    border: 1px solid rgba(139, 92, 246, 0.4);
+    color: #c084fc;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+}
+
+.tdd-player-contact {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0;
+    text-decoration: none;
+}
+
+.tdd-phone-link {
+    color: #38bdf8;
+    cursor: pointer;
+    transition: color 0.15s ease;
+}
+
+.tdd-phone-link:hover {
+    color: #7dd3fc;
+    text-decoration: underline;
+}
+
+.tdd-device-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.tdd-device-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: rgba(59, 130, 246, 0.15);
+    border: 1px solid rgba(59, 130, 246, 0.35);
+    color: #60a5fa;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.tdd-player-contact.tdd-muted {
+    color: rgba(255, 255, 255, 0.3);
+    font-style: italic;
+}
+
+/* ── Generic rows (Session section) ──────────────────────── */
+.tdd-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.tdd-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.tdd-row-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.tdd-row-value {
+    font-size: 13px;
+    font-weight: 500;
+    color: #e2e8f0;
+    text-align: right;
+}
+
+/* ── Badges (renewed) ─────────────────────────────────────── */
+.tdd-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+}
+
+.tdd-badge--yes {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.tdd-badge--no {
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ── Snack list ───────────────────────────────────────────── */
+.tdd-snack-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.tdd-snack-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.tdd-snack-name {
+    font-size: 13px;
+    color: #cbd5e1;
+    font-weight: 400;
+}
+
+.tdd-snack-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.tdd-snack-qty {
+    font-size: 12px;
+    color: rgba(139, 92, 246, 0.9);
+    font-weight: 600;
+}
+
+.tdd-snack-price {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.tdd-empty-snacks {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.28);
+    font-style: italic;
+    margin: 0;
+    padding: 4px 0;
+}
+
+/* ── Payment section ──────────────────────────────────────── */
+.tdd-payment-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 14px;
+}
+
+.tdd-payment-total-label {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.tdd-payment-total-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: #f1f5f9;
+    letter-spacing: -0.02em;
+}
+
+/* Split bar */
+.tdd-split-bar-wrap {
+    margin-bottom: 14px;
+}
+
+.tdd-split-bar {
+    display: flex;
+    height: 6px;
+    border-radius: 4px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.07);
+    margin-bottom: 8px;
+}
+
+.tdd-split-bar__cash {
+    background: linear-gradient(90deg, #f59e0b, #d97706);
+    border-radius: 4px 0 0 4px;
+    transition: width 0.4s ease;
+}
+
+.tdd-split-bar__online {
+    background: linear-gradient(90deg, #3b82f6, #2563eb);
+    border-radius: 0 4px 4px 0;
+    transition: width 0.4s ease;
+}
+
+/* If only one payment type, round both sides */
+.tdd-split-bar__cash:only-child,
+.tdd-split-bar__online:only-child {
+    border-radius: 4px;
+}
+
+.tdd-split-labels {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.tdd-split-label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.tdd-split-label--cash {
+    color: #f59e0b;
+}
+
+.tdd-split-label--online {
+    color: #60a5fa;
+}
+
+/* Payment mode row */
+.tdd-payment-mode-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 4px;
+}
+
+/* Mode pill */
+.tdd-mode-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+}
+
+.tdd-mode-pill--cash {
+    background: rgba(245, 158, 11, 0.12);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.tdd-mode-pill--online {
+    background: rgba(59, 130, 246, 0.12);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.25);
+}
+
+.tdd-mode-pill--split {
+    background: rgba(139, 92, 246, 0.12);
+    color: #a78bfa;
+    border: 1px solid rgba(139, 92, 246, 0.25);
+}
+
+/* ── Timestamp footer ─────────────────────────────────────── */
+.tdd-timestamp {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 14px 20px 0;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.28);
+}
+
+/* ── Shared muted text ────────────────────────────────────── */
+.tdd-muted {
+    color: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* ── Responsive: narrow screens ───────────────────────────── */
+@media (max-width: 480px) {
+    .tdd-drawer {
+        width: 100vw;
+        max-width: 100vw;
+        border-left: none;
+        border-top: 1px solid rgba(139, 92, 246, 0.2);
+        top: auto;
+        height: 85vh;
+        border-radius: 20px 20px 0 0;
+    }
+}

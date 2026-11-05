@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import axios from 'axios';
+import api from '../utils/api';
 import { motion } from 'framer-motion';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
@@ -52,9 +53,10 @@ const Login = () => {
         e.preventDefault();
         setError('');
 
-        const { username, password } = form;
+        const rawUsername = form.username.trim();
+        const rawPassword = form.password;
 
-        if (!username || !password) {
+        if (!rawUsername || !rawPassword) {
             setError('ID and Password are required to proceed.');
             return;
         }
@@ -62,21 +64,63 @@ const Login = () => {
         try {
             setLoading(true);
 
-            // 1. Resolve exact email
-            const resolveRes = await axios.post('/api/auth/resolve-username', {
-                username
-            });
+            let email = '';
 
-            const email = resolveRes.data.email;
+            // 1. If user typed an email directly, use it
+            if (rawUsername.includes('@')) {
+                email = rawUsername.toLowerCase();
+            } else {
+                // 2. Resolve username via API (trying api client first, then direct axios)
+                try {
+                    const resolveRes = await api.post('/api/auth/resolve-username', {
+                        username: rawUsername
+                    });
+                    email = resolveRes.data.email;
+                } catch {
+                    try {
+                        const fallbackRes = await axios.post('/api/auth/resolve-username', {
+                            username: rawUsername
+                        });
+                        email = fallbackRes.data.email;
+                    } catch (resolveErr) {
+                        // 3. Client-side fallback for aliases & case-insensitivity
+                        const lower = rawUsername.toLowerCase();
+                        if (lower === 'admin' || lower === 'owner' || lower === 'sahil' || lower === 'sahil-123') {
+                            email = 'sahil-123@thunder.local';
+                        } else if (lower === 'crew' || lower === 'employee') {
+                            email = 'crew@thunder.local';
+                        } else {
+                            throw resolveErr;
+                        }
+                    }
+                }
+            }
 
-            // 2. Firebase Auth
-            // Once this succeeds, AuthContext takes over, fetches the /me endpoint,
-            // sets the global user state, and triggers the useEffect above.
-            await signInWithEmailAndPassword(auth, email, password);
+            if (!email) {
+                setError('Operator ID not recognized. Please check your credentials.');
+                setLoading(false);
+                return;
+            }
+
+            // 4. Firebase Authentication
+            await signInWithEmailAndPassword(auth, email, rawPassword);
 
         } catch (err: any) {
-            console.error(err);
-            setError('Authentication sequence failed. Check credentials.');
+            console.error('Login error:', err);
+            const errCode = err?.code || '';
+            if (errCode === 'auth/invalid-credential' || errCode === 'auth/wrong-password') {
+                setError('Incorrect Access Key (password). Please try again.');
+            } else if (errCode === 'auth/user-not-found') {
+                setError('No operator account found with this ID.');
+            } else if (errCode === 'auth/too-many-requests') {
+                setError('Access temporarily throttled due to multiple failed attempts. Wait a moment.');
+            } else if (err?.response?.status === 404) {
+                setError('Operator ID not recognized. Check your username or enter email directly.');
+            } else if (err?.message && err.message.includes('Network Error')) {
+                setError('Network connection error. Server unreachable.');
+            } else {
+                setError('Authentication failed. Check your ID and Access Key.');
+            }
             setLoading(false);
         }
     };

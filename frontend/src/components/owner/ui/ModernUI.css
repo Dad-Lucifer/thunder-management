@@ -16,14 +16,16 @@
 
 .modern-glass-panel {
     background: var(--blue-card);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     border: 1px solid var(--glass-border);
     border-radius: 16px;
     padding: 1.5rem;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
     position: relative;
     overflow: hidden;
+    transform: translateZ(0);
+    will-change: transform;
 }
 
 .modern-glass-panel::before {
@@ -75,7 +77,6 @@
 
 .modern-badge.negative {
     background: rgba(59, 130, 246, 0.15);
-    /* Blue instead of Red to keep palette? Or Red? User allowed Gray/Red if needed, but Gold/Blue pref. Let's use Red for negative as it's standard financial */
     color: #f87171;
     border-color: rgba(248, 113, 113, 0.2);
 }
@@ -100,7 +101,7 @@
     background: transparent;
     border: none;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .modern-tab-item.active {
@@ -125,7 +126,7 @@
     font-weight: 600;
     cursor: pointer;
     border: none;
-    transition: all 0.2s;
+    transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .modern-btn.primary {

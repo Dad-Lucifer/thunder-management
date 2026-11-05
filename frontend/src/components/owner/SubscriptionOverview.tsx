@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import React, { useState, useEffect, useCallback } from 'react';
+import api from '../../utils/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaPlus, FaTrash, FaCheckCircle, FaExclamationCircle, FaTimesCircle, FaCalendarAlt } from 'react-icons/fa';
 import { GlassCard, GradientTitle } from './ui/ModernComponents';
@@ -15,7 +15,7 @@ interface Subscription {
     category: string;
 }
 
-const SubscriptionOverview: React.FC = () => {
+const SubscriptionOverview: React.FC = React.memo(() => {
     const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
     const [loading, setLoading] = useState(true);
     const [isFormOpen, setIsFormOpen] = useState(false);
@@ -30,25 +30,25 @@ const SubscriptionOverview: React.FC = () => {
         category: 'general'
     });
 
-    const fetchSubscriptions = async () => {
+    const fetchSubscriptions = useCallback(async () => {
         try {
-            const res = await axios.get('/api/subscription/subscriptions');
-            setSubscriptions(res.data);
+            const res = await api.get('/api/subscription/subscriptions');
+            setSubscriptions(Array.isArray(res.data) ? res.data : []);
         } catch (err) {
             console.error('Failed to fetch subscriptions', err);
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
         fetchSubscriptions();
-    }, []);
+    }, [fetchSubscriptions]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await axios.post('/api/subscription/subscriptions', form);
+            await api.post('/api/subscription/subscriptions', form);
             setForm({
                 name: '',
                 startDate: '',
@@ -68,7 +68,7 @@ const SubscriptionOverview: React.FC = () => {
     const handleDelete = async (id: string) => {
         if (!window.confirm('Are you sure you want to delete this subscription?')) return;
         try {
-            await axios.delete(`/api/subscription/subscriptions/${id}`);
+            await api.delete(`/api/subscription/subscriptions/${id}`);
             setSubscriptions(prev => prev.filter(sub => sub.id !== id));
         } catch (err) {
             console.error('Failed to delete subscription', err);
@@ -224,16 +224,13 @@ const SubscriptionOverview: React.FC = () => {
                             No active subscriptions tracked.
                         </p>
                     ) : (
-                        subscriptions.map((sub, idx) => {
+                        subscriptions.map((sub) => {
                             const status = getStatus(sub.endDate);
                             const StatusIcon = status.icon;
                             return (
-                                <motion.div
+                                <div
                                     key={sub.id}
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: idx * 0.05 }}
-                                    className="list-item"
+                                    className="list-item list-item--animate"
                                 >
                                     <div className="item-main">
                                         <span className="item-title">{sub.name}</span>
@@ -251,7 +248,7 @@ const SubscriptionOverview: React.FC = () => {
                                     <button className="delete-btn" onClick={() => handleDelete(sub.id)}>
                                         <FaTrash size={12} />
                                     </button>
-                                </motion.div>
+                                </div>
                             );
                         })
                     )}
@@ -259,6 +256,6 @@ const SubscriptionOverview: React.FC = () => {
             </div>
         </GlassCard>
     );
-};
+});
 
 export default SubscriptionOverview;

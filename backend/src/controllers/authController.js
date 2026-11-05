@@ -66,12 +66,6 @@ const loginUser = async (req, res) => {
             });
         }
 
-        /*
-          IMPORTANT:
-          Backend DOES NOT verify password with Firebase Admin.
-          Password verification happens on FRONTEND using Firebase SDK.
-        */
-
         return res.status(200).json({
             message:
                 'Use Firebase client SDK to sign in and send ID token to backend'
@@ -84,30 +78,93 @@ const loginUser = async (req, res) => {
 };
 
 
+/* ---------------------------------------
+   RESOLVE USERNAME TO EMAIL
+   Supports:
+   - Exact username (e.g. Sahil-123)
+   - Case-insensitive username (e.g. sahil-123, sahil)
+   - "admin" or "owner" alias
+   - Direct email addresses
+--------------------------------------- */
 const resolveusername = async (req, res) => {
     try {
         const { username } = req.body;
 
-        if (!username) {
+        if (!username || typeof username !== 'string') {
             return res.status(400).json({ message: 'Username is required' });
         }
 
+        const trimmed = username.trim();
+        const lowerInput = trimmed.toLowerCase();
+
+        // 1. If it's already an email, return directly or look up role
+        if (trimmed.includes('@')) {
+            const emailSnap = await db
+                .collection('users')
+                .where('email', '==', lowerInput)
+                .limit(1)
+                .get();
+
+            if (!emailSnap.empty) {
+                const u = emailSnap.docs[0].data();
+                return res.status(200).json({ email: u.email, role: u.role });
+            }
+            // Allow direct email for Firebase Auth
+            return res.status(200).json({ email: trimmed, role: 'owner' });
+        }
+
+        // 2. Exact match on username
         const snapshot = await db
             .collection('users')
-            .where('username', '==', username)
+            .where('username', '==', trimmed)
             .limit(1)
             .get();
 
-        if (snapshot.empty) {
-            return res.status(404).json({ message: 'User not found' });
+        if (!snapshot.empty) {
+            const userData = snapshot.docs[0].data();
+            return res.status(200).json({
+                email: userData.email,
+                role: userData.role
+            });
         }
 
-        const userData = snapshot.docs[0].data();
+        // 3. Case-insensitive search across all users & aliases
+        const allUsersSnap = await db.collection('users').get();
+        let matchedUser = null;
+        let ownerUser = null;
 
-        return res.status(200).json({
-            email: userData.email,
-            role: userData.role
+        allUsersSnap.forEach(doc => {
+            const u = doc.data();
+            const uName = (u.username || '').toLowerCase();
+            const uEmail = (u.email || '').toLowerCase();
+            const uDisplayName = (u.name || '').toLowerCase();
+            const uRole = (u.role || '').toLowerCase();
+
+            if (uRole === 'owner') {
+                ownerUser = u;
+            }
+
+            if (uName === lowerInput || uEmail === lowerInput || uDisplayName === lowerInput) {
+                matchedUser = u;
+            }
         });
+
+        if (matchedUser) {
+            return res.status(200).json({
+                email: matchedUser.email,
+                role: matchedUser.role
+            });
+        }
+
+        // 4. Handle "admin" or "owner" alias
+        if ((lowerInput === 'admin' || lowerInput === 'owner') && ownerUser) {
+            return res.status(200).json({
+                email: ownerUser.email,
+                role: ownerUser.role
+            });
+        }
+
+        return res.status(404).json({ message: 'User not found' });
 
     } catch (error) {
         console.error('Resolve Username Error:', error);

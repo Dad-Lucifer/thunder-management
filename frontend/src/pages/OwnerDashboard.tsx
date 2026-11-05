@@ -1,26 +1,32 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import {
     FaCalendarAlt, FaDownload, FaChartLine, FaRobot, FaUserCog
 } from 'react-icons/fa';
-import { motion } from 'framer-motion';
-
 import DashboardLayout from '../layouts/DashboardLayout';
 import {
-    GlassCard, GradientTitle, TabGroup, ActionButton, QuickStat
+    GlassCard, GradientTitle, ActionButton, QuickStat, TabGroup
 } from '../components/owner/ui/ModernComponents';
 import SubscriptionOverview from "../components/owner/SubscriptionOverview.tsx";
 import RecentTransactions from '../components/owner/RecentTransactions';
-
 import OwnerPieCharts from '../components/owner/OwnerPieCharts';
 import DeletionLogs from '../components/owner/DeletionLogs';
-import SnackOverview from '../components/owner/SnackOverview'; // Import SnackOverview
+import SnackOverview from '../components/owner/SnackOverview';
+import MonthSelector from '../components/owner/MonthSelector';
 import { useSessionExport } from '../components/owner/ExportSessionsReport';
 import UserManagement from '../components/owner/UserManagement';
+import { getClientReportingPeriods } from '../utils/reportingPeriods';
+import type { ReportingMonth, ReportingPeriods, DayFilter } from '../utils/reportingPeriods';
 
+import '../components/owner/owner-shared.css';
 import './OwnerDashboard.css';
+
+interface RevenueTrendPoint {
+    time: string | number;
+    amount: number;
+}
 
 interface KPIStat {
     label: string;
@@ -28,17 +34,33 @@ interface KPIStat {
     trend: number;
 }
 
-const OwnerDashboard: React.FC = () => {
-    const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
-    const [timeFilter, setTimeFilter] = useState('Today');
-    const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
+// ── Hoisted Constant Helpers ──
+const DAY_OPTIONS = ['All Month', 'Today', 'Yesterday', 'Day Before Yesterday'] as const;
 
-    const [chartMode, setChartMode] = useState<'hour' | 'day'>('hour');
-    const [kpiStats, setKpiStats] = useState<KPIStat[]>([]);
-    const [revenueTrends, setRevenueTrends] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
+const DAY_LABEL_MAP: Record<DayFilter, string> = {
+    'all': 'All Month',
+    'today': 'Today',
+    'yesterday': 'Yesterday',
+    'day-before-yesterday': 'Day Before Yesterday'
+};
 
-    // Live clock
+const LABEL_TO_DAY_FILTER: Record<string, DayFilter> = {
+    'All Month': 'all',
+    'Today': 'today',
+    'Yesterday': 'yesterday',
+    'Day Before Yesterday': 'day-before-yesterday'
+};
+
+const getIconForLabel = (label: string) => {
+    if (label.includes('Revenue')) return FaChartLine;
+    if (label.includes('Time')) return FaCalendarAlt;
+    return FaRobot;
+};
+
+// ── Isolated Live Clock (prevents entire dashboard tree re-renders every 1s) ──
+const LiveClock: React.FC = React.memo(() => {
+    const [currentTime, setCurrentTime] = useState(() => new Date().toLocaleTimeString());
+
     useEffect(() => {
         const interval = setInterval(
             () => setCurrentTime(new Date().toLocaleTimeString()),
@@ -47,66 +69,137 @@ const OwnerDashboard: React.FC = () => {
         return () => clearInterval(interval);
     }, []);
 
-    // Fetch dashboard data
+    return <div className="live-clock">{currentTime}</div>;
+});
+
+const OwnerDashboard: React.FC = () => {
+    const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
+
+    // Dynamic reporting periods (Current Month and Previous Month)
+    const [reportingPeriods, setReportingPeriods] = useState<ReportingPeriods>(() => getClientReportingPeriods());
+    // Current month is selected by default
+    const [selectedMonth, setSelectedMonth] = useState<ReportingMonth>(() => reportingPeriods.current);
+
+    // Day sub-filter (Only for Current Month): 'all' | 'today' | 'yesterday' | 'day-before-yesterday'
+    const [dayFilter, setDayFilter] = useState<DayFilter>('all');
+
+    const [chartMode, setChartMode] = useState<'hour' | 'day'>('day');
+    const [kpiStats, setKpiStats] = useState<KPIStat[]>([]);
+    const [revenueTrends, setRevenueTrends] = useState<RevenueTrendPoint[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    // ── Automatic Month Transition Monitor ──
+    const checkMonthTransition = useCallback(() => {
+        const fresh = getClientReportingPeriods();
+        setReportingPeriods(prev => {
+            if (prev.current.key !== fresh.current.key) {
+                // Calendar month rolled over!
+                setSelectedMonth(fresh.current);
+                setDayFilter('all');
+                return fresh;
+            }
+            return prev;
+        });
+    }, []);
+
     useEffect(() => {
+        checkMonthTransition();
+
+        const handleFocus = () => checkMonthTransition();
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                checkMonthTransition();
+            }
+        };
+
+        window.addEventListener('focus', handleFocus);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        const timer = setInterval(checkMonthTransition, 30000);
+
+        return () => {
+            window.removeEventListener('focus', handleFocus);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            clearInterval(timer);
+        };
+    }, [checkMonthTransition]);
+
+    // ── Fetch dashboard data strictly for the selected month & sub-filter ──
+    useEffect(() => {
+        let isMounted = true;
         const fetchDashboardData = async () => {
             setLoading(true);
-            const range = timeFilter.toLowerCase().replace(' ', '');
+            const activeDayFilter = selectedMonth.isCurrent ? dayFilter : 'all';
+            const queryParam = `month=${encodeURIComponent(selectedMonth.key)}${activeDayFilter !== 'all' ? `&dayFilter=${encodeURIComponent(activeDayFilter)}` : ''}`;
 
             try {
-                // Fetch stats and revenue flow in parallel to avoid race conditions
                 const [statsRes, flowRes] = await Promise.all([
-                    fetch(`/api/owner/ownerstat?range=${range}`),
-                    fetch(`/api/owner/revenueflow?range=${range}`)
+                    fetch(`/api/owner/ownerstat?${queryParam}`),
+                    fetch(`/api/owner/revenueflow?${queryParam}`)
                 ]);
 
                 const statsData = await statsRes.json();
                 const flowData = await flowRes.json();
 
-                setKpiStats(statsData.kpiStats || []);
-
-                // Use flowData specifically for the chart
-                setRevenueTrends(flowData.data || []);
-                setChartMode(flowData.groupBy || 'hour');
-
+                if (isMounted) {
+                    setKpiStats(statsData.kpiStats || []);
+                    setRevenueTrends(flowData.data || []);
+                    setChartMode(flowData.groupBy || 'day');
+                }
             } catch (err) {
                 console.error('❌ Dashboard data fetch failed:', err);
             } finally {
-                setLoading(false);
+                if (isMounted) {
+                    setLoading(false);
+                }
             }
         };
 
         fetchDashboardData();
-    }, [timeFilter]);
 
-
-
-    const filterOptions = ['Today', 'Yesterday', 'Last Week', 'This Month'];
+        return () => {
+            isMounted = false;
+        };
+    }, [selectedMonth.key, selectedMonth.isCurrent, dayFilter]);
 
     const { exportData, loading: exportLoading } = useSessionExport();
 
-    const handleDownload = () => {
-        exportData();
-    };
+    const handleDownload = useCallback(() => {
+        const activeDayFilter = selectedMonth.isCurrent ? dayFilter : 'all';
+        exportData(selectedMonth, activeDayFilter, 'csv');
+    }, [exportData, selectedMonth, dayFilter]);
 
-    // Icon helper
-    const getIconForLabel = (label: string) => {
-        if (label.includes('Revenue')) return FaChartLine;
-        if (label.includes('Time')) return FaCalendarAlt;
-        return FaRobot;
-    };
+    const activeDayLabel = useMemo(() => DAY_LABEL_MAP[dayFilter] || 'All Month', [dayFilter]);
+
+    const handleDayFilterChange = useCallback((opt: string) => {
+        const mapped = LABEL_TO_DAY_FILTER[opt] || 'all';
+        setDayFilter(mapped);
+    }, []);
+
+    const handleMonthChange = useCallback((m: ReportingMonth) => {
+        setSelectedMonth(m);
+        if (!m.isCurrent) {
+            setDayFilter('all');
+        }
+    }, []);
+
+    const effectiveDayFilter = selectedMonth.isCurrent ? dayFilter : undefined;
+
+    const revenueTitle = useMemo(() => {
+        if (selectedMonth.isCurrent && dayFilter !== 'all') {
+            if (dayFilter === 'today') return 'Revenue Flow — Today';
+            if (dayFilter === 'yesterday') return 'Revenue Flow — Yesterday';
+            return 'Revenue Flow — Day Before Yesterday';
+        }
+        return `Revenue Flow — ${selectedMonth.label}`;
+    }, [selectedMonth.isCurrent, selectedMonth.label, dayFilter]);
 
     return (
         <DashboardLayout>
             <div className="owner-dashboard-container">
 
                 {/* 1. Header */}
-                <motion.header
-                    className="dashboard-header"
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6 }}
-                >
+                <header className="dashboard-header">
                     <div className="header-left">
                         <h1 className="header-title">Command Center</h1>
                         <p className="header-subtitle">
@@ -115,15 +208,10 @@ const OwnerDashboard: React.FC = () => {
                     </div>
 
                     <div className="header-center">
-                        <div className="live-clock">{currentTime}</div>
+                        <LiveClock />
                     </div>
 
                     <div className="header-actions">
-                        <TabGroup
-                            options={filterOptions}
-                            active={timeFilter}
-                            onChange={setTimeFilter}
-                        />
                         <ActionButton
                             icon={FaDownload}
                             label={exportLoading ? "Exporting..." : "Export"}
@@ -137,28 +225,69 @@ const OwnerDashboard: React.FC = () => {
                             variant="ghost"
                         />
                     </div>
-                </motion.header>
+                </header>
 
-                {/* 2. KPI Cards */}
+                {/* 1b. Fixed Reporting Period & Filter Toolbar (Anchors MonthSelector in fixed grid position) */}
+                <div className="dashboard-filter-bar">
+                    <div className="filter-bar-left">
+                        <div className="month-selector-wrapper">
+                            <MonthSelector
+                                currentMonth={reportingPeriods.current}
+                                previousMonth={reportingPeriods.previous}
+                                selectedMonth={selectedMonth}
+                                onChange={handleMonthChange}
+                            />
+                        </div>
+
+                        <div className="day-filter-wrapper">
+                            {selectedMonth.isCurrent ? (
+                                <TabGroup
+                                    options={DAY_OPTIONS}
+                                    active={activeDayLabel}
+                                    onChange={handleDayFilterChange}
+                                />
+                            ) : (
+                                <div className="archive-badge">
+                                    <span className="archive-dot" />
+                                    <span>Full Month Archive ({selectedMonth.label})</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="filter-bar-right">
+                        <span className="reporting-period-label">
+                            Scope: <strong>{selectedMonth.isCurrent && dayFilter !== 'all' ? activeDayLabel : selectedMonth.label}</strong>
+                        </span>
+                    </div>
+                </div>
+
+                {/* 2. KPI Cards - Preserves layout height with shimmer skeleton to prevent collapse */}
                 <section className="hero-stats-grid">
-                    {!loading && kpiStats.map((stat, idx) => (
-                        <QuickStat
-                            key={idx}
-                            label={stat.label}
-                            value={String(stat.value)}
-                            trend={Number(stat.trend) || 0}
-                            icon={getIconForLabel(stat.label)}
-                            delay={idx * 0.1}
-                        />
-                    ))}
+                    {loading
+                        ? Array.from({ length: kpiStats.length > 0 ? kpiStats.length : 4 }).map((_, idx) => (
+                            <div key={`kpi-skeleton-${idx}`} className="kpi-skeleton" />
+                        ))
+                        : kpiStats.map((stat) => (
+                            <QuickStat
+                                key={stat.label}
+                                label={stat.label}
+                                value={String(stat.value)}
+                                trend={Number(stat.trend) || 0}
+                                icon={getIconForLabel(stat.label)}
+                                delay={0}
+                            />
+                        ))}
                 </section>
 
-                {/* 3. Revenue + Floor */}
+                {/* 3. Revenue + Machine Floor */}
                 <section className="operational-grid">
                     <div className="main-chart-area">
                         <GlassCard className="chart-panel">
                             <div className="panel-header">
-                                <GradientTitle size="medium">Revenue Flow</GradientTitle>
+                                <GradientTitle size="medium">
+                                    {revenueTitle}
+                                </GradientTitle>
                             </div>
 
                             <div className="chart-wrapper">
@@ -177,7 +306,7 @@ const OwnerDashboard: React.FC = () => {
                                             vertical={false}
                                         />
 
-                                        {/* X Axis = Hour */}
+                                        {/* X Axis = Hour for day filter, Date for full month */}
                                         <XAxis
                                             dataKey="time"
                                             stroke="#64748b"
@@ -188,7 +317,6 @@ const OwnerDashboard: React.FC = () => {
                                             tickLine={false}
                                             axisLine={false}
                                         />
-
 
                                         {/* Y Axis = Revenue */}
                                         <YAxis
@@ -202,10 +330,10 @@ const OwnerDashboard: React.FC = () => {
                                         <Tooltip
                                             contentStyle={{
                                                 backgroundColor: '#0f172a',
-                                                border: 'none',
+                                                border: '1px solid rgba(139, 92, 246, 0.3)',
                                                 borderRadius: '8px'
                                             }}
-                                            formatter={(value?: number) => [`₹${value ?? 0}`, 'Revenue']}
+                                            formatter={(value?: number) => [`₹${(value ?? 0).toLocaleString()}`, 'Revenue']}
                                             labelFormatter={(label) =>
                                                 chartMode === 'hour' ? `${label}:00` : label
                                             }
@@ -221,18 +349,17 @@ const OwnerDashboard: React.FC = () => {
                                         />
                                     </AreaChart>
                                 </ResponsiveContainer>
-
                             </div>
                         </GlassCard>
                     </div>
 
-                    <OwnerPieCharts timeFilter={timeFilter} />
+                    <OwnerPieCharts selectedMonth={selectedMonth} dayFilter={effectiveDayFilter} />
                 </section>
 
-                {/* 4. Secondary */}
+                {/* 4. Secondary: Transactions + Subscriptions */}
                 <section className="secondary-grid">
                     <div className="pie-charts-area">
-                        <RecentTransactions timeFilter={timeFilter} />
+                        <RecentTransactions selectedMonth={selectedMonth} dayFilter={effectiveDayFilter} />
                     </div>
                     <div className="transactions-area">
                         <SubscriptionOverview />
@@ -240,9 +367,9 @@ const OwnerDashboard: React.FC = () => {
                 </section>
 
                 {/* 5. Snacks & Deletion Audits */}
-                <section className="operational-grid" style={{ marginTop: '1.5rem', display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '1.5rem' }}>
-                    <SnackOverview />
-                    <DeletionLogs />
+                <section className="operational-grid snack-audit-grid">
+                    <SnackOverview selectedMonth={selectedMonth} dayFilter={effectiveDayFilter} />
+                    <DeletionLogs selectedMonth={selectedMonth} dayFilter={effectiveDayFilter} />
                 </section>
 
             </div>

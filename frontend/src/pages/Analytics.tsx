@@ -99,7 +99,7 @@ const Analytics: React.FC = () => {
     /* ─────────────────────────────────────────────
        Cache helpers  (TTL in milliseconds)
        ───────────────────────────────────────────── */
-    const CACHE_KEY_DASH    = 'an_dash_v1';
+    const CACHE_KEY_DASH    = 'an_dash_v2';
     const CACHE_KEY_BATTLES = 'an_battles_v1';
     const TTL_DASH    = 5  * 60 * 1000;  // 5 min  — live data
     const TTL_BATTLES = 15 * 60 * 1000;  // 15 min — changes slowly
@@ -256,7 +256,7 @@ const Analytics: React.FC = () => {
                                     </Card>
                                 </div>
                                 <div className="an-grid an-grid-2">
-                                    <Card title="Peak Hours" desc="Activity by time of day — last 24 hrs">
+                                    <Card title="Peak Hours" desc="Activity by time of day — This Month">
                                         <PeakHoursChart data={data?.peakHours ?? []} loading={loading} />
                                     </Card>
                                     <Card title="Device Occupancy" desc="Real-time device utilization">
@@ -284,7 +284,7 @@ const Analytics: React.FC = () => {
                         {activeTab === 'food' && (
                             <motion.div key="food" variants={tabVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.18 }}>
                                 <div className="an-grid an-grid-full">
-                                    <Card title="🍟 Snacks & Beverages" desc="Consumption breakdown — last 24 hours" badge="Live">
+                                    <Card title="🍟 Snacks & Beverages" desc="Consumption breakdown — This Month" badge="Live">
                                         <SnacksConsumptionChart data={data?.snacks ?? []} loading={loading} />
                                     </Card>
                                 </div>

@@ -28,8 +28,12 @@ const BattleLeaderboard: React.FC<{ data: CompletedBattle[]; loading?: boolean }
             }
         };
         data.forEach(b => {
-            process(b.crownHolder, b.winner === b.crownHolder.name);
-            process(b.challenger, b.winner === b.challenger.name);
+            if (b?.crownHolder?.name) {
+                process(b.crownHolder, b.winner === b.crownHolder.name);
+            }
+            if (b?.challenger?.name) {
+                process(b.challenger, b.winner === b.challenger.name);
+            }
         });
         return Array.from(map.values()).sort((a, b) =>
             b.wins !== a.wins ? b.wins - a.wins : b.winRate - a.winRate

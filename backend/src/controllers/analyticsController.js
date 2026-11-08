@@ -387,15 +387,13 @@ const getMonthlyGrowthComparison = async (req, res) => {
  */
 const getDashboardData = async (req, res) => {
     try {
-        const now         = new Date();
-        const last24      = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        const now = new Date();
         const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
         const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         const endOfLastMonth   = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
 
-        // ── 3 parallel Firestore reads ──
-        const [last24Snap, activeSnap, monthlySnap] = await Promise.all([
-            db.collection('sessions').where('createdAt', '>=', last24.toISOString()).get(),
+        // ── 2 parallel Firestore reads (monthly sessions cover both MTD and growth) ──
+        const [activeSnap, monthlySnap] = await Promise.all([
             db.collection('sessions').where('status', '==', 'active').get(),
             db.collection('sessions').where('createdAt', '>=', startOfLastMonth.toISOString()).get(),
         ]);
@@ -410,62 +408,83 @@ const getDashboardData = async (req, res) => {
             return raw.trim();
         };
 
-        // ── Process last-24h snapshot ──
         let totalEntries = 0;
         const deviceCount = {};
         const snackMap    = {};
         const hourMap     = {};
         for (let h = 10; h <= 22; h++) hourMap[h] = 0;
 
-        last24Snap.forEach(doc => {
+        const weeks = {
+            1: { thisMonth: 0, lastMonth: 0 },
+            2: { thisMonth: 0, lastMonth: 0 },
+            3: { thisMonth: 0, lastMonth: 0 },
+            4: { thisMonth: 0, lastMonth: 0 }
+        };
+
+        monthlySnap.forEach(doc => {
             const data = doc.data();
-            totalEntries++;
+            const createdAt = data.createdAt ? new Date(data.createdAt) : null;
+            const startTime = data.startTime ? new Date(data.startTime) : createdAt;
+            const date = startTime || createdAt;
+            if (!date) return;
 
-            // Devices
-            if (data.devices) {
-                Object.entries(data.devices).forEach(([k, v]) => {
-                    const n = Array.isArray(v) ? v.length : (typeof v === 'number' ? v : 0);
-                    deviceCount[k] = (deviceCount[k] || 0) + n;
-                });
+            // Monthly growth tracking
+            const week = Math.min(Math.ceil(date.getDate() / 7), 4);
+            const people = Number(data.peopleCount) || 1;
+            if (date >= startOfThisMonth && date <= now) {
+                weeks[week].thisMonth += people;
+            }
+            if (date >= startOfLastMonth && date <= endOfLastMonth) {
+                weeks[week].lastMonth += people;
             }
 
-            // Snacks
-            const arr = (data.snackDetails && Array.isArray(data.snackDetails))
-                ? data.snackDetails
-                : (Array.isArray(data.snacks) ? data.snacks : null);
+            // Month-to-date stats
+            if (date >= startOfThisMonth && date <= now) {
+                totalEntries++;
 
-            if (arr) {
-                arr.forEach(s => {
-                    const name = resolveSnackName(s);
-                    if (name) snackMap[name] = (snackMap[name] || 0) + (Number(s.quantity ?? s.qty) || 1);
-                });
-            } else if (data.snacks && typeof data.snacks === 'string') {
-                data.snacks.split(',').forEach(s => {
-                    let name = s.trim();
-                    let qty  = 1;
-                    const m  = name.match(/(.*?)\s*x(\d+)$/i);
-                    if (m) { name = m[1].trim(); qty = parseInt(m[2], 10) || 1; }
-                    if (name) snackMap[name] = (snackMap[name] || 0) + qty;
-                });
-            }
+                // Devices
+                if (data.devices) {
+                    Object.entries(data.devices).forEach(([k, v]) => {
+                        const n = Array.isArray(v) ? v.length : (typeof v === 'number' ? v : 0);
+                        deviceCount[k] = (deviceCount[k] || 0) + n;
+                    });
+                }
 
-            // Peak hours (IST)
-            if (data.startTime) {
-                const date = new Date(data.startTime);
+                // Snacks
+                const arr = (data.snackDetails && Array.isArray(data.snackDetails))
+                    ? data.snackDetails
+                    : (Array.isArray(data.snacks) ? data.snacks : null);
+
+                if (arr) {
+                    arr.forEach(s => {
+                        const name = resolveSnackName(s);
+                        if (name) snackMap[name] = (snackMap[name] || 0) + (Number(s.quantity ?? s.qty) || 1);
+                    });
+                } else if (data.snacks && typeof data.snacks === 'string') {
+                    data.snacks.split(',').forEach(s => {
+                        let name = s.trim();
+                        let qty  = 1;
+                        const m  = name.match(/(.*?)\s*x(\d+)$/i);
+                        if (m) { name = m[1].trim(); qty = parseInt(m[2], 10) || 1; }
+                        if (name) snackMap[name] = (snackMap[name] || 0) + qty;
+                    });
+                }
+
+                // Peak hours (IST)
                 const hour = istHour(date);
                 if (hour >= 10 && hour <= 22) {
-                    hourMap[hour] += Number(data.peopleCount) || 1;
+                    hourMap[hour] += people;
                 }
             }
         });
 
         // ── Stats card values ──
-        const mostPopularDevice = Object.entries(deviceCount).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
+        const mostPopularDevice = Object.entries(deviceCount).sort((a, b) => b[1] - a[1])[0]?.[0] || '—';
         const topSnackEntry     = Object.entries(snackMap).sort((a, b) => b[1] - a[1])[0];
-        const topSnack          = topSnackEntry?.[0] || 'N/A';
+        const topSnack          = topSnackEntry?.[0] || '—';
 
-        const peakHourRaw = Object.entries(hourMap).sort((a, b) => b[1] - a[1])[0]?.[0];
-        let peakHour = 'N/A';
+        const peakHourRaw = totalEntries > 0 ? Object.entries(hourMap).sort((a, b) => b[1] - a[1])[0]?.[0] : undefined;
+        let peakHour = '—';
         if (peakHourRaw !== undefined) {
             const h = Number(peakHourRaw);
             peakHour = `${h % 12 === 0 ? 12 : h % 12}:00 ${h >= 12 ? 'PM' : 'AM'}`;
@@ -490,8 +509,10 @@ const getDashboardData = async (req, res) => {
             { name: 'MetaBat', usage: deviceCount.metabat || 0 },
         ];
 
-        // ── Snacks array ──
-        const snacks = Object.entries(snackMap).map(([name, value]) => ({ name, value }));
+        // ── Snacks array (sorted descending) ──
+        const snacks = Object.entries(snackMap)
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value);
 
         // ── Occupancy ──
         let occupiedDevices = 0;
@@ -510,21 +531,6 @@ const getDashboardData = async (req, res) => {
             totalCapacity
         };
 
-        // ── Monthly growth ──
-        const weeks = {
-            1: { thisMonth: 0, lastMonth: 0 },
-            2: { thisMonth: 0, lastMonth: 0 },
-            3: { thisMonth: 0, lastMonth: 0 },
-            4: { thisMonth: 0, lastMonth: 0 }
-        };
-        monthlySnap.forEach(doc => {
-            const data = doc.data();
-            if (!data.startTime || !data.peopleCount) return;
-            const date  = new Date(data.startTime);
-            const week  = Math.min(Math.ceil(date.getDate() / 7), 4);
-            if (date >= startOfThisMonth && date <= now) weeks[week].thisMonth += Number(data.peopleCount);
-            if (date >= startOfLastMonth && date <= endOfLastMonth) weeks[week].lastMonth += Number(data.peopleCount);
-        });
         const growth = [1, 2, 3, 4].map(w => ({
             day: `Week ${w}`, lastMonth: weeks[w].lastMonth, thisMonth: weeks[w].thisMonth
         }));
@@ -536,7 +542,6 @@ const getDashboardData = async (req, res) => {
         return res.status(500).json({ error: 'Failed to fetch dashboard data' });
     }
 };
-
 
 module.exports = {
     getDeviceOccupancyLast24Hours,

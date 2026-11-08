@@ -118,7 +118,7 @@ const ThunderCoinsLeaderboard: React.FC<{ data: CoinEntry[]; loading?: boolean }
                                 {formatName(topPlayer.name)}
                             </span>
                             <span style={{ fontSize: '0.75rem', color: '#64748b', fontFamily: '"JetBrains Mono", monospace', letterSpacing: '0.1em', marginTop: '4px' }}>
-                                ID://{topPlayer.phone.slice(-4) || 'XXXX'}
+                                ID://{String(topPlayer.phone || '').slice(-4) || 'XXXX'}
                             </span>
                         </div>
                     </div>
@@ -221,7 +221,7 @@ const ThunderCoinsLeaderboard: React.FC<{ data: CoinEntry[]; loading?: boolean }
                                             )}
                                         </div>
                                         <span style={{ fontSize: '0.65rem', color: '#475569', fontFamily: '"JetBrains Mono", monospace', letterSpacing: '0.1em' }}>
-                                            USR_{item.phone.slice(-4) || 'XXXX'}
+                                            USR_{String(item.phone || '').slice(-4) || 'XXXX'}
                                         </span>
                                     </div>
                                 </div>

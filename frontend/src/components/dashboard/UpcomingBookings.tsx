@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '../../utils/api';
 import { useRef, useState, useEffect } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -57,7 +58,7 @@ const UpcomingBookings = () => {
 
   const fetchBookings = async () => {
     try {
-      const res = await axios.get('https://thunder-management.onrender.com/api/sessions/upcoming');
+      const res = await axios.get(`${API_BASE_URL}/api/sessions/upcoming`);
       // Sort bookings chronologically
       const sorted = res.data.sort((a: Booking, b: Booking) => new Date(a.time).getTime() - new Date(b.time).getTime());
       setBookings(sorted);
@@ -80,7 +81,7 @@ const UpcomingBookings = () => {
     setStartingIds(prev => new Set(prev).add(booking.id));
 
     try {
-      await axios.post(`https://thunder-management.onrender.com/api/sessions/start-booking/${booking.id}`);
+      await axios.post(`${API_BASE_URL}/api/sessions/start-booking/${booking.id}`);
       showToast(`${booking.name}'s session has started.`, 'success');
       fetchBookings(); // Refresh the active sessions board somehow? The Dashboard usually polls or gets sockets.
     } catch (error: any) {
@@ -99,7 +100,7 @@ const UpcomingBookings = () => {
     if (!deleteData) return;
 
     try {
-      await axios.delete(`https://thunder-management.onrender.com/api/sessions/booking/${deleteData.id}`, {
+      await axios.delete(`${API_BASE_URL}/api/sessions/booking/${deleteData.id}`, {
         data: {
           deletedBy: user?.role === 'owner' ? 'Owner' : 'Employee',
           deletedByName: user?.username || 'Unknown'

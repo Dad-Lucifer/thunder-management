@@ -2,11 +2,11 @@
     "rewrites": [
         {
             "source": "/api/(.*)",
-            "destination": "https://thunder-management.onrender.com/api/$1"
+            "destination": "https://white-goat-900623.hostingersite.com/api/$1"
         },
         {
             "source": "/socket.io/(.*)",
-            "destination": "https://thunder-management.onrender.com/socket.io/$1"
+            "destination": "https://white-goat-900623.hostingersite.com/socket.io/$1"
         },
         {
             "source": "/(.*)",

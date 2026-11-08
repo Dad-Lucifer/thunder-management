@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import * as XLSX from 'xlsx';
 import type { ReportingMonth, DayFilter } from '../../utils/reportingPeriods';
+import api from '../../utils/api';
 
 /**
  * Custom Hook for handling Month-Scoped Session Exports
@@ -19,14 +20,8 @@ export const useSessionExport = () => {
 
         try {
             const queryParam = `month=${encodeURIComponent(selectedMonth.key)}&dayFilter=${encodeURIComponent(dayFilter)}`;
-            const response = await fetch(`/api/sessions/export?${queryParam}`);
-
-            if (!response.ok) {
-                const err = await response.json();
-                throw new Error(err.message || 'Export failed');
-            }
-
-            const resJson = await response.json();
+            const response = await api.get(`/api/sessions/export?${queryParam}`);
+            const resJson = response.data;
             const sessionData = Array.isArray(resJson) ? resJson : (resJson.data || []);
             const reportTitle = resJson.title || `SB GAMING DATABASE [ ${selectedMonth.name.toUpperCase()} ]`;
 

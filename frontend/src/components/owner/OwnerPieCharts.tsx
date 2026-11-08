@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { FaTrophy, FaChartPie, FaSpinner } from 'react-icons/fa';
 import { GlassCard, GradientTitle } from './ui/ModernComponents';
 import type { ReportingMonth, DayFilter } from '../../utils/reportingPeriods';
+import api from '../../utils/api';
 
 // --- Constants & Config ---
 const COLORS = [
@@ -105,10 +106,8 @@ const OwnerPieCharts: React.FC<Props> = ({ timeFilter, selectedMonth, dayFilter 
                 const queryParam = selectedMonth
                     ? `month=${encodeURIComponent(selectedMonth.key)}${dayFilter ? `&dayFilter=${encodeURIComponent(dayFilter)}` : ''}`
                     : `range=${(timeFilter || 'today').toLowerCase().replace(' ', '')}`;
-                const res = await fetch(
-                    `/api/owner/revenue-by-machine?${queryParam}`
-                );
-                const result = await res.json();
+                const res = await api.get(`/api/owner/revenue-by-machine?${queryParam}`);
+                const result = res.data;
 
                 // Sort by value desc for better visualization
                 const sorted = (result || []).sort((a: PieData, b: PieData) => b.value - a.value);

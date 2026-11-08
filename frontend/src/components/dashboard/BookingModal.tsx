@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '../../utils/api';
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -90,7 +91,7 @@ const BookingModal = ({ onClose, onSuccess }: Props) => {
       try {
         setIsSearching(true);
         const res = await axios.get(
-          "https://thunder-management.onrender.com/api/customers/search",
+          `${API_BASE_URL}/api/customers/search`,
           { params: { name: form.customerName.trim() } }
         );
         if (!cancel) {
@@ -143,7 +144,7 @@ const BookingModal = ({ onClose, onSuccess }: Props) => {
       const endDateTime = new Date(`${form.bookingDate}T${form.bookingEndTime}`);
 
       const res = await axios.get(
-        'https://thunder-management.onrender.com/api/sessions/availability-for-time',
+        `${API_BASE_URL}/api/sessions/availability-for-time`,
         {
           params: {
             startTime: startDateTime.toISOString(),
@@ -241,7 +242,7 @@ const BookingModal = ({ onClose, onSuccess }: Props) => {
       const bookingDateTime = new Date(`${form.bookingDate}T${form.bookingTime}`);
       const endDateTime = new Date(`${form.bookingDate}T${form.bookingEndTime}`);
 
-      await axios.post('https://thunder-management.onrender.com/api/sessions/booking', {
+      await axios.post(`${API_BASE_URL}/api/sessions/booking`, {
         customerName: form.customerName,
         contactNumber: form.contactNumber,
         peopleCount: form.peopleCount,

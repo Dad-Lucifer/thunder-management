@@ -5,6 +5,7 @@ import {
 import {
     FaCalendarAlt, FaDownload, FaChartLine, FaRobot, FaUserCog
 } from 'react-icons/fa';
+import api from '../utils/api';
 import DashboardLayout from '../layouts/DashboardLayout';
 import {
     GlassCard, GradientTitle, ActionButton, QuickStat, TabGroup
@@ -134,12 +135,12 @@ const OwnerDashboard: React.FC = () => {
 
             try {
                 const [statsRes, flowRes] = await Promise.all([
-                    fetch(`/api/owner/ownerstat?${queryParam}`),
-                    fetch(`/api/owner/revenueflow?${queryParam}`)
+                    api.get(`/api/owner/ownerstat?${queryParam}`),
+                    api.get(`/api/owner/revenueflow?${queryParam}`)
                 ]);
 
-                const statsData = await statsRes.json();
-                const flowData = await flowRes.json();
+                const statsData = statsRes.data;
+                const flowData = flowRes.data;
 
                 if (isMounted) {
                     setKpiStats(statsData.kpiStats || []);

@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '../../utils/api';
 import { useEffect, useRef, useState } from 'react';
 import { FaUserCircle, FaSignOutAlt, FaSearch } from 'react-icons/fa';
 import { IoNotificationsOutline } from 'react-icons/io5';
@@ -61,7 +62,7 @@ const TopNavbar = () => {
   useEffect(() => {
     const checkExpiring = async () => {
       try {
-        const res = await axios.get('https://thunder-management.onrender.com/api/sessions/active');
+        const res = await axios.get(`${API_BASE_URL}/api/sessions/active`);
         const sessions: Session[] = res.data;
 
         const now = Date.now();

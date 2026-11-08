@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '../../utils/api';
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
@@ -75,7 +76,7 @@ const PlayerThunderSearchModal = ({ open, onClose }: Props) => {
         try {
             /* STEP 1 — verify player */
             const playerRes = await axios.get(
-                "https://thunder-management.onrender.com/api/battles/thunder-player",
+                `${API_BASE_URL}/api/battles/thunder-player`,
                 { params: { name, phone } }
             );
 
@@ -83,7 +84,7 @@ const PlayerThunderSearchModal = ({ open, onClose }: Props) => {
 
             /* STEP 2 — fetch activity ONLY if player valid */
             const activityRes = await axios.get(
-                "https://thunder-management.onrender.com/api/battles/player-activity",
+                `${API_BASE_URL}/api/battles/player-activity`,
                 { params: { phone } }
             );
 
@@ -117,7 +118,7 @@ const PlayerThunderSearchModal = ({ open, onClose }: Props) => {
                 setIsSearching(true);
 
                 const res = await axios.get(
-                    "https://thunder-management.onrender.com/api/customers/search",
+                    `${API_BASE_URL}/api/customers/search`,
                     { params: { name: name.trim() } }
                 );
 

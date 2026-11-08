@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '../../utils/api';
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -94,7 +95,7 @@ const SessionEntry: React.FC = () => {
       // Backend returns limits as numbers { ps: 6 } and occupied as arrays { ps: [1,2] }
       // We need to map `limits` properly if it comes as object
       const res = await axios.get<{ limits: Record<DeviceKeys, number>; occupied: { [key in DeviceKeys]: number[] } }>(
-        'https://thunder-management.onrender.com/api/sessions/availability'
+        `${API_BASE_URL}/api/sessions/availability`
       );
       setAvailability(res.data);
     } catch (e) {
@@ -139,7 +140,7 @@ const SessionEntry: React.FC = () => {
         return;
       }
 
-      await axios.post('https://thunder-management.onrender.com/api/sessions/start', {
+      await axios.post(`${API_BASE_URL}/api/sessions/start`, {
         ...form,
         duration: durationInHours,
         price: totalPrice

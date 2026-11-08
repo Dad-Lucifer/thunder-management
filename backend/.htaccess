@@ -1,0 +1,12 @@
+# Enable CORS headers at the web server level (for Hostinger Apache/LiteSpeed)
+<IfModule mod_headers.c>
+    Header always set Access-Control-Allow-Origin "https://thunder-management-six.vercel.app"
+    Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+    Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Accept, Origin"
+    Header always set Access-Control-Allow-Credentials "true"
+</IfModule>
+
+# Handle preflight OPTIONS requests
+RewriteEngine On
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^(.*)$ $1 [R=200,L]

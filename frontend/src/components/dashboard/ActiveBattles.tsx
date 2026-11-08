@@ -23,8 +23,9 @@ interface Battle {
 /* -------------------- Socket -------------------- */
 
 // create socket ONCE
-const socket = io(API_BASE_URL, {
-    transports: ['websocket']
+const socket = io("https://white-goat-900623.hostingersite.com", {
+  transports: ["polling", "websocket"],
+  withCredentials: true,
 });
 
 /* -------------------- Component -------------------- */
